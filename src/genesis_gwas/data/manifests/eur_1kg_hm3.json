@@ -1,0 +1,185 @@
+{
+  "format_version": 1,
+  "name": "eur_1kg_hm3",
+  "version": "1.0",
+  "population": "EUR",
+  "panel": "1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05",
+  "genome_build": "GRCh37",
+  "n_ref": 489,
+  "n_snps": 1070777,
+  "source": {
+    "repo": "https://github.com/yandorazhang/GENESIS",
+    "commit": "e4e6894d2e11ece6715d0572b0febceff1480f85"
+  },
+  "ld_configs": [
+    {
+      "id": "w500kb_r0.05",
+      "window_kb": 500,
+      "r2_min": 0.05,
+      "file": "ld/w500kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.1",
+      "window_kb": 500,
+      "r2_min": 0.1,
+      "file": "ld/w500kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.2",
+      "window_kb": 500,
+      "r2_min": 0.2,
+      "file": "ld/w500kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.05",
+      "window_kb": 1000,
+      "r2_min": 0.05,
+      "file": "ld/w1000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.1",
+      "window_kb": 1000,
+      "r2_min": 0.1,
+      "file": "ld/w1000kb_r0.1.npz",
+      "pairld": "pairld/w1000kb_r0.1.npz"
+    },
+    {
+      "id": "w1000kb_r0.2",
+      "window_kb": 1000,
+      "r2_min": 0.2,
+      "file": "ld/w1000kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.05",
+      "window_kb": 2000,
+      "r2_min": 0.05,
+      "file": "ld/w2000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.1",
+      "window_kb": 2000,
+      "r2_min": 0.1,
+      "file": "ld/w2000kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.2",
+      "window_kb": 2000,
+      "r2_min": 0.2,
+      "file": "ld/w2000kb_r0.2.npz",
+      "pairld": null
+    }
+  ],
+  "nullz": {
+    "dtype": "float16",
+    "n_replicates": 100,
+    "files": [
+      "nullz/nullz_000-009.npy",
+      "nullz/nullz_010-019.npy",
+      "nullz/nullz_020-029.npy",
+      "nullz/nullz_030-039.npy",
+      "nullz/nullz_040-049.npy",
+      "nullz/nullz_050-059.npy",
+      "nullz/nullz_060-069.npy",
+      "nullz/nullz_070-079.npy",
+      "nullz/nullz_080-089.npy",
+      "nullz/nullz_090-099.npy"
+    ]
+  },
+  "files": {
+    "examples/height_giant2010.sumstats.tsv.gz": {
+      "sha256": "7862b2feb86f56b0b6111b34f4da5c52f59589c5aa4ce33f496f4ea5579330a8",
+      "bytes": 12600083
+    },
+    "ld/w1000kb_r0.05.npz": {
+      "sha256": "4cf31871c16d8b16148d53eb06f259c60550c74407e71c6df84f489317c12cee",
+      "bytes": 26995465
+    },
+    "ld/w1000kb_r0.1.npz": {
+      "sha256": "a87e9940b692d7131762916b71a2f09ba476d7bc660761fc33f7b609ffb8df21",
+      "bytes": 21414821
+    },
+    "ld/w1000kb_r0.2.npz": {
+      "sha256": "e9e2c26e7c95884c3bac6a904e8cfe65f7eea8beb6da2135ce7538de2963f7fa",
+      "bytes": 17155211
+    },
+    "ld/w2000kb_r0.05.npz": {
+      "sha256": "f50ac3e4ba5b77bdcf6edb8c9878d30efca6a504c2dfab4b5fd46cc2d7e662a5",
+      "bytes": 27297460
+    },
+    "ld/w2000kb_r0.1.npz": {
+      "sha256": "6e0aabcc0bd2560b19bf1a95d0239fdc72f12432404c970a071b2b33e3f4c521",
+      "bytes": 21510995
+    },
+    "ld/w2000kb_r0.2.npz": {
+      "sha256": "28d6102e8adcb306f6df1c5655465682d79c8ec925a083dd1a0151e771a4c68f",
+      "bytes": 17177279
+    },
+    "ld/w500kb_r0.05.npz": {
+      "sha256": "438752a3a6e5c64f0caa7021af6e60f6ce1ae41d42048122f9f332680b530dc4",
+      "bytes": 26312322
+    },
+    "ld/w500kb_r0.1.npz": {
+      "sha256": "d014c3f37a60142fecba9348ac7241619cac945723116a44e4a86600d0611ba8",
+      "bytes": 21229993
+    },
+    "ld/w500kb_r0.2.npz": {
+      "sha256": "1f3310ad9d5fcc7ffc21e9ee2ebd1d1ade95821610573ece3d8094148b36c5bd",
+      "bytes": 17114072
+    },
+    "nullz/nullz_000-009.npy": {
+      "sha256": "435565647e69da5420cbc06fba847c7e05bc3b9e4c5546a0925a3b33d368c71e",
+      "bytes": 21415668
+    },
+    "nullz/nullz_010-019.npy": {
+      "sha256": "617f8769acd45ad2f44db5b90738c9412e16b5d4b02e56e8f86f548043e4ceba",
+      "bytes": 21415668
+    },
+    "nullz/nullz_020-029.npy": {
+      "sha256": "8c0a1dd0958a81ad9db03a04825bce8ec2338650733c63190e218a021c5cbd4b",
+      "bytes": 21415668
+    },
+    "nullz/nullz_030-039.npy": {
+      "sha256": "df8541e705d97b080c51fb44aa3e3f878e01863f83b70fd4c1c64301d522021f",
+      "bytes": 21415668
+    },
+    "nullz/nullz_040-049.npy": {
+      "sha256": "f74a6774311ae815d456bd2fd8cef319660a873238a9b709cee2b9b1b5595635",
+      "bytes": 21415668
+    },
+    "nullz/nullz_050-059.npy": {
+      "sha256": "d852b9f01b93cfa637821102fed1e07f26edeb724cf8804d31c1743a4682d574",
+      "bytes": 21415668
+    },
+    "nullz/nullz_060-069.npy": {
+      "sha256": "6fbdc24b69b0dcc0cdc675fd3322124e43e6dd2e6878e643f433d4aaa22aac68",
+      "bytes": 21415668
+    },
+    "nullz/nullz_070-079.npy": {
+      "sha256": "48c28e7f5a477ebb32d827dd4475c516637f019e84ff3530b02891ed67418435",
+      "bytes": 21415668
+    },
+    "nullz/nullz_080-089.npy": {
+      "sha256": "765edc193901f68db4820c161029086c939697b92ab4138eb3c64e65d701c5f7",
+      "bytes": 21415668
+    },
+    "nullz/nullz_090-099.npy": {
+      "sha256": "9a90fa70d5e5d9376cc14f382d605d603755b37c08cea318f07b87d1c3788a59",
+      "bytes": 21415668
+    },
+    "pairld/w1000kb_r0.1.npz": {
+      "sha256": "70b560963d0b9b7309ebfba645d52970fd2e4ef4c796ce175eb6bf7a02c74f70",
+      "bytes": 69492687
+    },
+    "snps.npz": {
+      "sha256": "24686030865a70505a104aa0e9912a3eea9840c19bfa02a3c3d5df37d12f658a",
+      "bytes": 11102044
+    }
+  }
+}

@@ -171,7 +171,7 @@ def neighborhood_sums(
 
 @dataclass(frozen=True)
 class SandwichResult:
-    """Sandwich covariance and its ingredients.
+    r"""Sandwich covariance and its ingredients.
 
     Attributes
     ----------

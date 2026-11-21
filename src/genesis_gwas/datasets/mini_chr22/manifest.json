@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "name": "mini_chr22",
+  "version": "1.0",
+  "population": "EUR",
+  "panel": "1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05; chromosome 22 only",
+  "genome_build": "GRCh37",
+  "n_ref": 489,
+  "n_snps": 15633,
+  "source": {
+    "repo": "https://github.com/yandorazhang/GENESIS",
+    "commit": "e4e6894d2e11ece6715d0572b0febceff1480f85"
+  },
+  "ld_configs": [
+    {
+      "id": "w1000kb_r0.1",
+      "window_kb": 1000,
+      "r2_min": 0.1,
+      "file": "ld/w1000kb_r0.1.npz",
+      "pairld": "pairld/w1000kb_r0.1.npz"
+    },
+    {
+      "id": "w500kb_r0.2",
+      "window_kb": 500,
+      "r2_min": 0.2,
+      "file": "ld/w500kb_r0.2.npz",
+      "pairld": null
+    }
+  ],
+  "nullz": {
+    "dtype": "float16",
+    "n_replicates": 10,
+    "files": [
+      "nullz/nullz_000-009.npy"
+    ]
+  },
+  "files": {
+    "examples/height_chr22.sumstats.tsv.gz": {
+      "sha256": "09db19df9cee6e84f48127239a3595b7cdb6203c349d2388d30f8c9fd98470c1",
+      "bytes": 164895
+    },
+    "ld/w1000kb_r0.1.npz": {
+      "sha256": "3390cd98d8a2c7e4e75b74166514b44fcd26b54fafd64c8aa8068924a7d8cbed",
+      "bytes": 304079
+    },
+    "ld/w500kb_r0.2.npz": {
+      "sha256": "c07007b8d6eedd23bbfb1fe4186f8b6558f3107040025746b85c1476c65def00",
+      "bytes": 244271
+    },
+    "nullz/nullz_000-009.npy": {
+      "sha256": "e281c8c5778d9a9b4af93e047e6552cb53f191e4210bb90b9ba8742f51dcedbb",
+      "bytes": 312788
+    },
+    "pairld/w1000kb_r0.1.npz": {
+      "sha256": "9070f3aee9286ae71aef42a54f108d2b5ac36af21f557d9659fd01468e52efce",
+      "bytes": 899181
+    },
+    "snps.npz": {
+      "sha256": "8be8edfb6a7353992baab098352f146d623cc5e201da9ea456023d0fe03c9234",
+      "bytes": 157951
+    }
+  }
+}
