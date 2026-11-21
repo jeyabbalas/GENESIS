@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-import tests.upstream_port as up
 
+import tests.upstream_port as up
 from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec

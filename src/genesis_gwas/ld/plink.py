@@ -93,7 +93,14 @@ def read_bim(path: str | os.PathLike[str]) -> pd.DataFrame:
             sep=r"\s+",
             header=None,
             names=["chrom", "snp", "cm", "pos", "a1", "a2"],
-            dtype={"chrom": str, "snp": str, "cm": np.float64, "pos": np.int64, "a1": str, "a2": str},
+            dtype={
+                "chrom": str,
+                "snp": str,
+                "cm": np.float64,
+                "pos": np.int64,
+                "a1": str,
+                "a2": str,
+            },
             na_filter=False,
             engine="c",
         )
@@ -178,7 +185,9 @@ class BedReader:
         self._mm: np.ndarray | None = None
 
     @classmethod
-    def from_prefix(cls, prefix: str | os.PathLike[str]) -> tuple[BedReader, pd.DataFrame, pd.DataFrame]:
+    def from_prefix(
+        cls, prefix: str | os.PathLike[str]
+    ) -> tuple[BedReader, pd.DataFrame, pd.DataFrame]:
         """Open a fileset by prefix; returns ``(reader, bim, fam)``."""
         bed, bim_path, fam_path = resolve_fileset(prefix)
         bim = read_bim(bim_path)
@@ -235,17 +244,17 @@ class BedReader:
             idx = np.arange(self.n_variants, dtype=np.int64)
         else:
             idx = np.asarray(variants, dtype=np.int64).ravel()
-            if idx.size and (idx.min() < 0 or idx.max() >= self.n_variants):
+            if idx.size and (int(np.min(idx)) < 0 or int(np.max(idx)) >= self.n_variants):
                 raise InputError(
                     f"variant indices must lie in [0, {self.n_variants}); "
-                    f"got range [{idx.min()}, {idx.max()}]"
+                    f"got range [{int(np.min(idx))}, {int(np.max(idx))}]"
                 )
         if samples is None:
             cols: np.ndarray | None = None
             n_out = self.n_samples
         else:
             cols = np.asarray(samples, dtype=np.int64).ravel()
-            if cols.size and (cols.min() < 0 or cols.max() >= self.n_samples):
+            if cols.size and (int(np.min(cols)) < 0 or int(np.max(cols)) >= self.n_samples):
                 raise InputError(f"sample indices must lie in [0, {self.n_samples})")
             n_out = cols.size
         lut = _LOOKUP[bool(count_a1)]

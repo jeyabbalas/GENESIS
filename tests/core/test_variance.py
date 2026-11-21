@@ -6,8 +6,8 @@ import math
 
 import numpy as np
 import pytest
-import tests.upstream_port as up
 
+import tests.upstream_port as up
 from genesis_gwas.core.variance import (
     Neighborhoods,
     delta_method,

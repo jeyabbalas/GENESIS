@@ -461,10 +461,14 @@ def cmd_ld_build(args: argparse.Namespace) -> int:
         configs=configs,
         min_maf=args.min_maf,
         n_null=args.n_null,
+        null_statistic=args.null_statistic,
+        round_r2=args.round_r2,
         seed=args.seed,
         population=args.population,
         genome_build=args.genome_build,
+        version=args.bundle_version,
         device=device,
+        backend=args.backend,
         threads=args.threads,
     )
     log.info("Reference bundle written to %s; use it with --reference %s", out, out)

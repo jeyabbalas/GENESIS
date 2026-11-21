@@ -382,7 +382,26 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--r2", type=_float_list, default=[0.1], help="tagging threshold(s) [0.1]")
     b.add_argument("--min-maf", type=float, default=0.05, help="minimum MAF in the panel [0.05]")
     b.add_argument(
-        "--n-null", type=int, default=0, help="LD-correlated null Z replicates to store [0]"
+        "--n-null",
+        type=int,
+        default=0,
+        help="LD-correlated null Z replicates to store, for QQ envelopes [0]",
+    )
+    b.add_argument(
+        "--null-statistic",
+        choices=["t", "normal", "projection"],
+        default="t",
+        help="how null Z-scores are computed from null phenotypes [t]",
+    )
+    b.add_argument(
+        "--round-r2",
+        type=int,
+        default=None,
+        help="round r^2 to this many significant digits before thresholding "
+        "(6 reproduces the original reference tables exactly) [no rounding]",
+    )
+    b.add_argument(
+        "--bundle-version", default="1.0", help="version label recorded in the bundle [1.0]"
     )
     b.add_argument("--population", default="unknown")
     b.add_argument("--genome-build", default="GRCh37")

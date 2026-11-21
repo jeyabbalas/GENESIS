@@ -26,21 +26,23 @@ R package from the 1000 Genomes genotypes they were computed from; see
 
 Reproducing the original tables exactly
 ---------------------------------------
-The original tables were evidently post-processed from a PLINK ``--r2`` text table, in
-which :math:`r^2` is printed with six significant digits. ``round_r2=6`` emulates that
-(see :func:`compute_ld`). For new reference panels leave ``round_r2=None``: rounding is
-an artefact, not part of the method.
+The original tables were evidently derived from a printed PLINK ``--r2`` table, in which
+:math:`r^2` has six significant digits: thresholds were applied to, and LD scores summed
+from, the printed values. ``round_r2=6`` emulates that (see :func:`compute_ld`) and
+reproduces all nine original tables. For new reference panels leave ``round_r2=None``:
+rounding is an artefact of that workflow, not part of the method.
 
 Algorithm
 ---------
 Per chromosome, genotypes are standardised to unit-norm rows :math:`\tilde x_k`, so that
 :math:`r_{km}=\tilde x_k^\top\tilde x_m`. Blocks of consecutive SNPs are multiplied with
 the SNPs inside their window (one BLAS ``gemm`` — or one GPU matrix product — per
-block), thresholded, and written out as sorted CSR rows. Working memory is bounded by
-``block_size x window width``, independent of the number of SNPs. Several
-(window, threshold) configurations are produced from a *single* pass: the banded
-:math:`r^2` is computed once for the widest window and lowest threshold and filtered
-down.
+block), thresholded, and written out as sorted CSR rows. The dense working memory is
+bounded by ``block_size x window width``; beyond that only one chromosome's genotypes
+(one byte each) and the sparse result are held. Several (window, threshold)
+configurations are produced from a *single* pass: the banded :math:`r^2` is computed
+once for the widest window and lowest threshold and filtered down. The whole genome for
+the 1.07 million HapMap3 SNPs of 489 samples takes well under a minute on a laptop.
 """
 
 from __future__ import annotations
@@ -78,7 +80,7 @@ Config = tuple[float, float]
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class LDTable:
-    """LD quantities of one (window, threshold) configuration.
+    r"""LD quantities of one (window, threshold) configuration.
 
     Attributes
     ----------
@@ -89,7 +91,7 @@ class LDTable:
     nstar
         ``(m,)`` ``int32`` — number of tagged SNPs :math:`N^*_k` (itself included).
     ldscore
-        ``(m,)`` ``float64`` — bias-corrected LD score :math:`\\ell_k`.
+        ``(m,)`` ``float64`` — bias-corrected LD score :math:`\ell_k`.
     indptr, indices
         Tagging sets in compressed-sparse-row form: the SNPs tagged by SNP ``k`` are
         ``indices[indptr[k]:indptr[k + 1]]``, in ascending order, ``k`` included.
@@ -127,19 +129,24 @@ class LDTable:
             raise InputError("No tables to concatenate")
         first = tables[0]
         for t in tables:
-            if (t.window_kb, t.r2_min, t.n_samples) != (first.window_kb, first.r2_min, first.n_samples):
+            if (t.window_kb, t.r2_min, t.n_samples) != (
+                first.window_kb,
+                first.r2_min,
+                first.n_samples,
+            ):
                 raise InputError("Cannot concatenate LD tables of different configurations")
         offsets = np.cumsum([0] + [t.n_snps for t in tables])
         nnz_off = np.cumsum([0] + [t.nnz for t in tables])
+        if int(offsets[-1]) > np.iinfo(np.int32).max:
+            raise DataError("Too many SNPs for 32-bit neighbour indices")
         indptr = np.concatenate(
             [np.zeros(1, dtype=np.int64)]
             + [t.indptr[1:].astype(np.int64) + nnz_off[i] for i, t in enumerate(tables)]
         )
-        indices = np.concatenate(
-            [t.indices.astype(np.int64) + offsets[i] for i, t in enumerate(tables)]
-        )
-        if indices.size and indices.max() > np.iinfo(np.int32).max:
-            raise DataError("Too many SNPs for 32-bit neighbour indices")
+        # Shift in place into one preallocated int32 array (no int64 temporaries).
+        indices = np.empty(int(nnz_off[-1]), dtype=np.int32)
+        for i, t in enumerate(tables):
+            np.add(t.indices, np.int32(offsets[i]), out=indices[nnz_off[i] : nnz_off[i + 1]])
         keep_r2 = all(t.r2 is not None for t in tables)
         return LDTable(
             window_kb=first.window_kb,
@@ -147,8 +154,8 @@ class LDTable:
             nstar=np.concatenate([t.nstar for t in tables]).astype(np.int32),
             ldscore=np.concatenate([t.ldscore for t in tables]),
             indptr=indptr,
-            indices=indices.astype(np.int32),
-            r2=np.concatenate([t.r2 for t in tables]) if keep_r2 else None,  # type: ignore[misc]
+            indices=indices,
+            r2=np.concatenate([t.r2 for t in tables if t.r2 is not None]) if keep_r2 else None,
             n_samples=first.n_samples,
         )
 
@@ -309,12 +316,12 @@ def _resolve_backend(device: str, backend: str | None) -> tuple[str, Any]:
 def _block_pairs_numpy(
     Zb: np.ndarray, Zw: np.ndarray, pos_b: np.ndarray, pos_w: np.ndarray, max_bp: int, floor: float
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    R = Zb @ Zw.T
-    np.multiply(R, R, out=R)
-    keep = R >= floor
+    rsq = Zb @ Zw.T
+    np.multiply(rsq, rsq, out=rsq)
+    keep = rsq >= floor
     keep &= np.abs(pos_w[None, :] - pos_b[:, None]) <= max_bp
     rows, cols = np.nonzero(keep)
-    return rows, cols, R[rows, cols].astype(np.float64)
+    return rows, cols, rsq[rows, cols].astype(np.float64)
 
 
 def _block_pairs_torch(
@@ -330,13 +337,13 @@ def _block_pairs_torch(
     with torch.inference_mode():
         tb = torch.from_numpy(np.ascontiguousarray(Zb)).to(device)
         tw = torch.from_numpy(np.ascontiguousarray(Zw)).to(device)
-        R = tb @ tw.T
-        R *= R
+        rsq = tb @ tw.T
+        rsq *= rsq
         pb = torch.from_numpy(np.ascontiguousarray(pos_b)).to(device)
         pw = torch.from_numpy(np.ascontiguousarray(pos_w)).to(device)
-        keep = (R >= floor) & ((pw[None, :] - pb[:, None]).abs() <= max_bp)
+        keep = (rsq >= floor) & ((pw[None, :] - pb[:, None]).abs() <= max_bp)
         rows, cols = torch.nonzero(keep, as_tuple=True)
-        vals = R[rows, cols].to(torch.float64)
+        vals = rsq[rows, cols].to(torch.float64)
         return rows.cpu().numpy(), cols.cpu().numpy(), vals.cpu().numpy()
 
 
@@ -380,11 +387,16 @@ def _compute_chromosome(
             f"{bad} SNP(s) are monomorphic or entirely missing in the reference samples; "
             "remove them before computing LD (build_reference does this automatically)."
         )
-    max_bp = int(round(max(w for w, _ in configs) * 1000.0))
+    max_bp = round(max(w for w, _ in configs) * 1000.0)
     min_t = min(t for _, t in configs)
-    # When r^2 is rounded, a value just below a threshold may round up onto it: collect
-    # candidates slightly below the lowest threshold and decide after rounding.
-    floor = min_t if round_r2 is None else min_t * (1.0 - 10.0 ** (-(round_r2 - 1)))
+    # When r^2 is rounded, a value just below a threshold may round up onto it. Rounding
+    # to d significant digits moves a value by at most half a unit of its d-th digit,
+    # i.e. by a relative 0.5 * 10^-(d-1): collect candidates down to that bound and
+    # decide after rounding.
+    if round_r2 is None:
+        floor = min_t
+    else:
+        floor = min_t / (1.0 + 0.5 * 10.0 ** (-(round_r2 - 1))) * (1.0 - 1e-12)
     floor = max(floor - 4.0 * np.finfo(np.float64).eps, 0.0)
     pos64 = pos.astype(np.int64)
 
@@ -400,7 +412,9 @@ def _compute_chromosome(
         if backend == "numpy":
             r, c, v = _block_pairs_numpy(Zb, Zw, pos64[i0:i1], pos64[lo:hi], max_bp, floor)
         else:
-            r, c, v = _block_pairs_torch(torch, device, Zb, Zw, pos64[i0:i1], pos64[lo:hi], max_bp, floor)
+            r, c, v = _block_pairs_torch(
+                torch, device, Zb, Zw, pos64[i0:i1], pos64[lo:hi], max_bp, floor
+            )
         rows_l.append((r + i0).astype(np.int32))
         cols_l.append((c + lo).astype(np.int32))
         vals_l.append(v)
@@ -409,12 +423,13 @@ def _compute_chromosome(
     r2_exact = np.concatenate(vals_l) if vals_l else np.empty(0)
     del rows_l, cols_l, vals_l
     is_self = rows == cols
+    np.minimum(r2_exact, 1.0, out=r2_exact)  # duplicates can exceed one by an ulp
     r2_exact[is_self] = 1.0
     # A SNP always tags itself, whatever floating-point noise did to its diagonal entry.
     missing_self = np.setdiff1d(np.arange(m, dtype=np.int32), rows[is_self], assume_unique=False)
     if missing_self.size:  # pragma: no cover - cannot happen for r2 floor <= 1
         raise DataError("Internal error: self pairs missing from the banded r2")
-    dist = np.abs(pos64[cols] - pos64[rows])
+    dist = np.abs(pos64[cols] - pos64[rows]).astype(np.int32)  # <= widest window
 
     if round_r2 is None:
         r2_used = r2_exact
@@ -423,17 +438,10 @@ def _compute_chromosome(
         r2_used[is_self] = 1.0
 
     tables: list[LDTable] = []
-    lowest = min_t
     for (w_kb, t), want_r2 in zip(configs, keep_r2, strict=True):
-        sel = dist <= int(round(w_kb * 1000.0))
-        if round_r2 is None:
-            sel &= r2_exact >= t
-        elif t == lowest:
-            # PLINK applies --ld-window-r2 to the exact value before printing ...
-            sel &= r2_exact >= t
-        else:
-            # ... while higher thresholds are applied afterwards, to the printed values.
-            sel &= r2_used >= t
+        # With round_r2 the threshold acts on the rounded ("printed") value, so a pair
+        # whose exact r^2 is a hair below r2_min but prints as r2_min is tagged.
+        sel = (dist <= round(w_kb * 1000.0)) & (r2_used >= t)
         sel |= is_self
         rs = rows[sel]
         x = r2_used[sel]
@@ -488,13 +496,14 @@ def compute_ld(
     round_r2
         ``None`` (default, recommended for new panels) uses exact :math:`r^2`.
 
-        An integer ``d`` emulates post-processing of a PLINK ``--r2`` text table, which
-        is how the tables of the original R package were made: :math:`r^2` is rounded to
-        ``d`` significant digits (PLINK prints six) *before* it enters the LD score; the
-        lowest requested threshold is applied to the exact value (as PLINK's
-        ``--ld-window-r2`` does) and any higher threshold to the rounded value (as a
-        filter applied to the printed table does). ``round_r2=6`` together with the nine
-        original configurations requested in one call reproduces the original tables.
+        An integer ``d`` emulates filtering a printed PLINK ``--r2`` table, which is how
+        the tables of the original R package were made: every :math:`r^2` is first
+        rounded to ``d`` **significant** digits (PLINK prints six, so 0.123456 but
+        0.0512346), and the rounded value is what is compared with ``r2_min`` and what
+        enters the LD score. ``round_r2=6`` reproduces the original tables (see
+        ``tools/ld_validation``). Its only effects are that pairs whose exact
+        :math:`r^2` lies within half a unit of the last printed digit below ``r2_min``
+        are tagged, and that LD scores move by about :math:`10^{-5}`.
     keep_r2
         Whether to return the pairwise :math:`r^2` of each configuration (a single
         ``bool`` or one per configuration).
@@ -546,6 +555,11 @@ def compute_ld(
         raise InputError("round_r2 must be a positive number of significant digits, or None")
     if dtype not in ("float64", "float32"):
         raise InputError("dtype must be 'float64' or 'float32'")
+    if dtype == "float32" and round_r2 is not None:
+        raise InputError(
+            "round_r2 requires dtype='float64': float32 correlations are not accurate enough "
+            "to be rounded to a fixed number of digits reproducibly."
+        )
     if block_size < 1:
         raise InputError("block_size must be >= 1")
     name, torch = _resolve_backend(device, backend)
@@ -572,8 +586,16 @@ def compute_ld(
             raise InputError("SNPs must be sorted by position within each chromosome")
         per_chrom.append(
             _compute_chromosome(
-                G[a:b], p[a:b], cfgs, keeps, None if round_r2 is None else int(round_r2),
-                int(block_size), name, torch, str(device), np_dtype,
+                G[a:b],
+                p[a:b],
+                cfgs,
+                keeps,
+                None if round_r2 is None else int(round_r2),
+                int(block_size),
+                name,
+                torch,
+                str(device),
+                np_dtype,
             )
         )
     if not per_chrom:
@@ -592,19 +614,43 @@ def null_z(
     seed: int | None = 0,
     *,
     phenotypes: np.ndarray | None = None,
+    statistic: str = "t",
     chunk: int = 8192,
 ) -> np.ndarray:
-    r"""LD-correlated null Z-scores, :math:`u \sim N(0, \hat R)`.
+    r"""LD-correlated null association statistics of the reference panel.
 
-    For a phenotype :math:`y \sim N(0, I_n)` unrelated to every SNP, the marginal
-    association statistics of the reference samples are
-    :math:`u_k = \tilde x_k^\top y` with :math:`\tilde x_k` the unit-norm standardised
-    genotype of SNP :math:`k` (equivalently :math:`\tilde X^\top y/\sqrt n` for
-    variance-standardised genotypes). Each :math:`u_k` is exactly standard normal and
-    :math:`\operatorname{cov}(u_k, u_m) = \hat r_{km}`, the sample LD correlation — the
-    joint null distribution of GWAS Z-scores (Zhang et al. 2018, "Simulation studies").
-    GENESIS uses such replicates to give QQ-plot envelopes and genomic-control
-    projections realistic LD-induced variability.
+    For a phenotype :math:`y \sim N(0, I_n)` that is unrelated to every SNP, a GWAS of
+    the :math:`n` reference samples yields test statistics that are (marginally)
+    null-distributed and whose correlation between SNPs :math:`k` and :math:`m` is the
+    LD correlation :math:`\hat r_{km}` — the joint null distribution of real GWAS
+    Z-scores (Zhang et al. 2018, "Simulation studies"). GENESIS adds such replicates,
+    scaled by :math:`1/\sqrt{n_\text{GWAS}}`, to simulated marginal effects so that
+    QQ-plot envelopes and genomic-control projections have realistic LD-induced
+    variability.
+
+    With :math:`\tilde x_k` the centred, unit-norm genotype of SNP :math:`k` and
+    :math:`r_k = \tilde x_k^\top (y-\bar y)/\lVert y-\bar y\rVert` its sample correlation
+    with the phenotype, ``statistic`` selects
+
+    ``"t"`` (default)
+        :math:`t_k = r_k\sqrt{n-2}/\sqrt{1-r_k^2}`, the *t* statistic of the simple
+        regression of :math:`y` on SNP :math:`k`, i.e. what GWAS software reports. This
+        is what the null replicates shipped with the original package are: their
+        variance, spread across replicates and fourth moment match this statistic and
+        not the raw projection (see ``tools/ld_validation``). Marginally
+        :math:`t_{n-2}`, so its variance is :math:`(n-2)/(n-4)` (1.004 for 489 samples).
+    ``"normal"``
+        The same statistic mapped to exact standard-normal margins,
+        :math:`z_k = \Phi^{-1}\{F_{t_{n-2}}(t_k)\}`. Prefer this for small reference
+        panels (a few hundred samples or fewer), where the heavier tails and inflated
+        variance of :math:`t_{n-2}` would otherwise leak into simulations of large GWAS.
+    ``"projection"``
+        :math:`u_k = \tilde x_k^\top y`, which is exactly :math:`N(0, \hat R)` over
+        replicates. It is *not* studentised: all statistics of a replicate share the
+        factor :math:`\lVert y-\bar y\rVert/\sqrt{n-1}`, whose standard deviation is
+        :math:`\approx 1/\sqrt{2(n-1)}` (3% for 489 samples), so the genome-wide mean
+        :math:`\chi^2` of a replicate fluctuates about six times more than for the
+        other two choices. Provided for completeness; not recommended for simulations.
 
     Parameters
     ----------
@@ -617,6 +663,8 @@ def null_z(
     phenotypes
         Optional ``(n_replicates, n)`` phenotype matrix. Pass the *same* matrix for
         every chromosome so that each replicate is one genome-wide null GWAS.
+    statistic
+        ``"t"``, ``"normal"`` or ``"projection"`` (see above).
     chunk
         SNPs processed at a time.
 
@@ -629,6 +677,10 @@ def null_z(
     if G.ndim != 2:
         raise InputError("genotypes must be a 2-D (n_snps, n_samples) array")
     m, n = G.shape
+    if statistic not in ("t", "normal", "projection"):
+        raise InputError("statistic must be 't', 'normal' or 'projection'")
+    if n < 5:
+        raise InputError("At least five reference samples are needed for null statistics")
     if phenotypes is None:
         if n_replicates is None or n_replicates < 1:
             raise InputError("n_replicates must be >= 1 when phenotypes are not supplied")
@@ -637,10 +689,25 @@ def null_z(
         Y = np.asarray(phenotypes, dtype=np.float64)
         if Y.ndim != 2 or Y.shape[1] != n:
             raise InputError("phenotypes must have shape (n_replicates, n_samples)")
+    if statistic != "projection":
+        Yc = Y - Y.mean(axis=1, keepdims=True)
+        norm = np.linalg.norm(Yc, axis=1, keepdims=True)
+        if np.any(norm == 0):
+            raise InputError("A null phenotype is constant; cannot compute association statistics")
+        Y = Yc / norm
     out = np.empty((Y.shape[0], m), dtype=np.float32)
     for i0 in range(0, m, chunk):
         Z = standardize_genotypes(G[i0 : i0 + chunk])
-        out[:, i0 : i0 + chunk] = (Z @ Y.T).T
+        u = (Z @ Y.T).T
+        if statistic != "projection":
+            np.clip(u, -1.0 + 1e-15, 1.0 - 1e-15, out=u)
+            u *= np.sqrt(n - 2.0) / np.sqrt(1.0 - u * u)
+            if statistic == "normal":
+                from scipy.stats import norm as _norm
+                from scipy.stats import t as _t
+
+                u = np.sign(u) * _norm.isf(_t.sf(np.abs(u), n - 2))
+        out[:, i0 : i0 + chunk] = u
     return out
 
 
@@ -648,7 +715,7 @@ def null_z(
 # Bundle construction
 # ---------------------------------------------------------------------------
 def _read_id_list(spec: Any, what: str) -> np.ndarray | None:
-    """Identifiers from a file (first whitespace-separated column) or a sequence."""
+    """Read identifiers from a file (first whitespace-separated column) or a sequence."""
     if spec is None:
         return None
     if isinstance(spec, (str, os.PathLike)):
@@ -715,6 +782,7 @@ def build_reference(
     configs: Sequence[Config] = ((1000.0, 0.1),),
     min_maf: float = 0.05,
     n_null: int = 0,
+    null_statistic: str = "t",
     seed: int = 0,
     population: str = "unknown",
     genome_build: str = "GRCh37",
@@ -758,8 +826,14 @@ def build_reference(
         Keep SNPs whose minor-allele frequency *in the selected samples* is at least
         this value (0.05 as in the paper). Monomorphic SNPs are always removed.
     n_null
-        Number of LD-correlated null Z-score replicates to store (see :func:`null_z`);
-        0 for none. One hundred replicates cost about 0.2 GB per million SNPs.
+        Number of LD-correlated null replicates to store (see :func:`null_z`); 0 for
+        none. They are needed for QQ-plot envelopes and genomic-control projections.
+        One hundred replicates cost about 0.2 GB per million SNPs.
+    null_statistic
+        Kind of null statistic: ``"t"`` (default; the regression *t* statistics of a
+        null GWAS in the reference samples, as in the original package), ``"normal"``
+        (the same with exact standard-normal margins; preferable for panels of a few
+        hundred samples or fewer) or ``"projection"``.
     seed
         Seed for the null replicates.
     population, genome_build, version, panel
@@ -799,6 +873,8 @@ def build_reference(
         raise InputError("min_maf must lie in [0, 0.5)")
     if n_null < 0:
         raise InputError("n_null must be >= 0")
+    if null_statistic not in ("t", "normal", "projection"):
+        raise InputError("null_statistic must be 't', 'normal' or 'projection'")
     chrom_list = sorted({int(c) for c in chromosomes})
     if not chrom_list or chrom_list[0] < 1 or chrom_list[-1] > 22:
         raise InputError("chromosomes must be autosomes in 1..22")
@@ -825,13 +901,23 @@ def build_reference(
     template = os.fspath(bfile)
     per_chrom_files = "{chrom}" in template
     filesets: list[tuple[int | None, str]] = (
-        [(c, template.format(chrom=c)) for c in chrom_list] if per_chrom_files else [(None, template)]
+        [(c, template.format(chrom=c)) for c in chrom_list]
+        if per_chrom_files
+        else [(None, template)]
     )
 
     limiter = _set_blas_threads(threads)
+    if threads is not None and backend == "torch" and str(device) == "cpu":
+        import torch
+
+        torch.set_num_threads(int(threads))
     stats = {
-        "variants_seen": 0, "not_autosomal_or_not_requested": 0, "not_in_snp_list": 0,
-        "duplicate_id": 0, "duplicate_position": 0, "monomorphic_or_all_missing": 0,
+        "variants_seen": 0,
+        "not_autosomal_or_not_requested": 0,
+        "not_in_snp_list": 0,
+        "duplicate_id": 0,
+        "duplicate_position": 0,
+        "monomorphic_or_all_missing": 0,
         "below_min_maf": 0,
     }
     sample_ids: np.ndarray | None = None
@@ -840,7 +926,7 @@ def build_reference(
     out_rsid: list[np.ndarray] = []
     out_chrom: list[np.ndarray] = []
     out_pos: list[np.ndarray] = []
-    out_tables: list[list[LDTable]] = []
+    per_config: list[list[LDTable]] = [[] for _ in cfgs]
     out_null: list[np.ndarray] = []
     try:
         for file_chrom, prefix in filesets:
@@ -885,7 +971,9 @@ def build_reference(
                 on_chrom = auto == c
                 cand = np.flatnonzero(on_chrom)
                 if snp_set is not None and cand.size:
-                    hit = np.fromiter((s in snp_set for s in all_ids[cand].tolist()), dtype=bool, count=cand.size)
+                    hit = np.fromiter(
+                        (s in snp_set for s in all_ids[cand].tolist()), dtype=bool, count=cand.size
+                    )
                     stats["not_in_snp_list"] += int((~hit).sum())
                     cand = cand[hit]
                 if cand.size == 0:
@@ -895,7 +983,9 @@ def build_reference(
                 first = np.zeros(cand.size, dtype=bool)
                 first[np.unique(ids_c, return_index=True)[1]] = True
                 if seen_ids:
-                    first &= np.fromiter((s not in seen_ids for s in ids_c.tolist()), dtype=bool, count=cand.size)
+                    first &= np.fromiter(
+                        (s not in seen_ids for s in ids_c.tolist()), dtype=bool, count=cand.size
+                    )
                 stats["duplicate_id"] += int((~first).sum())
                 cand = cand[first]
                 # canonical order and duplicated positions
@@ -926,20 +1016,30 @@ def build_reference(
                     continue
                 t0 = time.perf_counter()
                 tables = compute_ld(
-                    G, all_pos[cand], configs=cfgs, round_r2=round_r2, keep_r2=keep_r2,
-                    block_size=block_size, device=device, backend=backend,
+                    G,
+                    all_pos[cand],
+                    configs=cfgs,
+                    round_r2=round_r2,
+                    keep_r2=keep_r2,
+                    block_size=block_size,
+                    device=device,
+                    backend=backend,
                 )
                 if Y is not None:
-                    out_null.append(null_z(G, phenotypes=Y))
+                    out_null.append(null_z(G, phenotypes=Y, statistic=null_statistic))
                 seen_ids.update(all_ids[cand].tolist())
                 out_rsid.append(all_ids[cand])
                 out_chrom.append(np.full(cand.size, c, dtype=np.uint8))
                 out_pos.append(all_pos[cand])
-                out_tables.append(tables)
+                for per, table in zip(per_config, tables, strict=True):
+                    per.append(table)
                 log.info(
                     "chr%-2d %9s SNPs, %s tagging pairs (%s), %.1f s",
-                    c, f"{cand.size:,}", f"{tables[0].nnz:,}",
-                    config_id(*cfgs[0]), time.perf_counter() - t0,
+                    c,
+                    f"{cand.size:,}",
+                    f"{tables[0].nnz:,}",
+                    config_id(*cfgs[0]),
+                    time.perf_counter() - t0,
                 )
             reader.close()
             stats["not_autosomal_or_not_requested"] += int(
@@ -960,7 +1060,12 @@ def build_reference(
     rsid = np.concatenate(out_rsid)
     chrom_a = np.concatenate(out_chrom)
     pos_a = np.concatenate(out_pos)
-    merged = [LDTable.concatenate([tabs[i] for tabs in out_tables]) for i in range(len(cfgs))]
+    # Merge one configuration at a time and release its per-chromosome pieces straight
+    # away, so that peak memory is one copy of the tables plus one configuration.
+    merged: list[LDTable] = []
+    for per in per_config:
+        merged.append(LDTable.concatenate(per))
+        per.clear()
     cfg_dicts = [
         {
             "window_kb": t.window_kb,
@@ -995,11 +1100,16 @@ def build_reference(
             "min_maf": float(min_maf),
             "round_r2": round_r2,
             "seed": int(seed),
+            "null_statistic": null_statistic if n_null else None,
             "filter_counts": stats,
         },
     )
     log.info(
         "Wrote reference bundle %s: %s SNPs, %d samples, %d configuration(s), %.1f s",
-        root, f"{rsid.size:,}", n, len(cfgs), time.perf_counter() - t_start,
+        root,
+        f"{rsid.size:,}",
+        n,
+        len(cfgs),
+        time.perf_counter() - t_start,
     )
     return root

@@ -38,6 +38,7 @@ dependencies = [
     "scipy>=1.10",
     "pandas>=2.0",
     "matplotlib>=3.7",
+    "threadpoolctl>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -123,6 +124,9 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff.lint.isort]
+known-first-party = ["genesis_gwas", "tests"]
 
 [tool.mypy]
 python_version = "3.10"

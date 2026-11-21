@@ -14,7 +14,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from tests.helpers import load_fixture
 
 import genesis_gwas as gg
 from genesis_gwas.analysis.density import effect_density, n_in_interval
@@ -24,6 +23,7 @@ from genesis_gwas.analysis.prediction import polyrisk_predict
 from genesis_gwas.analysis.projection import project
 from genesis_gwas.analysis.simulate import future_gc, qq_simulation
 from genesis_gwas.exceptions import InputError
+from tests.helpers import load_fixture
 
 EPS = float(np.finfo(float).eps)
 

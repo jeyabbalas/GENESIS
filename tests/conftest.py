@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from tests.helpers import simulate
 
 from genesis_gwas.compute import resolve_plan
 from genesis_gwas.core.data import ModelData
+from tests.helpers import simulate
 
 
 @pytest.fixture(scope="session")

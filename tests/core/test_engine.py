@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from tests.helpers import simulate
 
 from genesis_gwas.backends import get_backend, torch_available
 from genesis_gwas.compute import available_cpus, resolve_plan
@@ -12,6 +11,7 @@ from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec
 from genesis_gwas.exceptions import BackendError, InputError
+from tests.helpers import simulate
 
 needs_torch = pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
 TH3 = np.array([0.012, 0.2, 2e-4, 2e-5, 1.2e-6])
