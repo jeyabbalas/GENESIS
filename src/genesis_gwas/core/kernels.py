@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
-__all__ = ["Chunk", "em_pass", "posterior_pass", "score_pass"]
+__all__ = ["Chunk", "em_pass", "posterior_pass", "score_pass", "weights_pass"]
 
 
 class Chunk:
@@ -233,3 +233,14 @@ def posterior_pass(xp: Any, ch: Chunk, tb: dict[str, Any]) -> tuple[dict[str, An
         "lse": lse,
     }
     return {}, per_snp
+
+
+def weights_pass(xp: Any, ch: Chunk, tb: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return the full ``(n, T)`` matrix of posterior configuration weights.
+
+    Memory-hungry by construction (one row of ``T`` doubles per SNP); intended for
+    inspection, teaching and tests rather than for the fitting loop, which only ever
+    needs sums over SNPs.
+    """
+    w, _q, _u, lse = _estep(xp, ch, tb["logprior"], tb["cw"], tb["aw"])
+    return {}, {"w": w, "lse": lse}

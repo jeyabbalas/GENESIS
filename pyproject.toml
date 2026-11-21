@@ -82,7 +82,8 @@ include = ["/src", "/tests", "/docs", "/tools", "/README.md", "/BIOWULF.md", "/L
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --strict-config"
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 markers = [
     "slow: long-running tests (deselect with -m 'not slow')",
     "gpu: requires a CUDA device",

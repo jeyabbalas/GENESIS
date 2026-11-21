@@ -277,6 +277,20 @@ class CompositeLikelihood:
         res = self.em_pass(theta, want_e=True, want_m=False)
         return res.loglik, res.loglik_unnorm
 
+    def weights(self, theta: np.ndarray) -> np.ndarray:
+        r"""Posterior weights :math:`w_{kt}` of every latent configuration, shape ``(K, T)``.
+
+        Column ``t`` corresponds to row ``t`` of :attr:`J`. For the three-component model
+        the layout ``t = j1 * (c0 + 1) + j2`` matches the original ``weight3()``.
+        Allocates ``K x T`` doubles — use on subsets of SNPs.
+        """
+        self.check_feasible(theta)
+        _, _, sig, a = self.spec.unpack(theta)
+        logprior, _, _ = self._prior_tables(theta)
+        tables = {"logprior": logprior, "cw": self._Jf @ sig, "aw": a}
+        _, per = self.engine.run(kernels.weights_pass, tables, self.n_terms)
+        return per["w"]
+
     # ------------------------------------------------------------ score/information
     def score_info(self, theta: np.ndarray) -> ScoreInfo:
         """Per-SNP scores and total observed information of the truncated likelihood."""
