@@ -11,14 +11,21 @@ identical names and semantics in both are used. A kernel returns two dictionarie
 
 Notation (one chunk of ``n`` SNPs, ``T`` latent configurations)
 ----------------------------------------------------------------
-``b``, ``b2``   :math:`\hat\beta_k`, :math:`\hat\beta_k^2`
-``s2``          :math:`s_k^2` (sampling variance of :math:`\hat\beta_k`)
-``r``           :math:`\ell_k / N^*_k` (LD score per tagged SNP)
-``uidx``        index of :math:`N^*_k` in the table of distinct :math:`N^*` values
-``logprior``    ``(U, T)`` log prior of each configuration, without the term
-                :math:`N^*_k\log(1-\pi_c)` that is constant across configurations
-``c``           ``(T,)`` :math:`\sum_h J_{th}\sigma_h^2`
-``v``           ``(n, T)`` mixture variances :math:`v_{kt} = r_k c_t + s_k^2 + a`
+``b``, ``b2``
+    :math:`\hat\beta_k`, :math:`\hat\beta_k^2`
+``s2``
+    :math:`s_k^2` (sampling variance of :math:`\hat\beta_k`)
+``r``
+    :math:`\ell_k / N^*_k` (LD score per tagged SNP)
+``uidx``
+    index of :math:`N^*_k` in the table of distinct :math:`N^*` values
+``logprior``
+    ``(U, T)`` log prior of each configuration, without the term
+    :math:`N^*_k\log(1-\pi_c)` that is constant across configurations
+``c``
+    ``(T,)`` :math:`\sum_h J_{th}\sigma_h^2`
+``v``
+    ``(n, T)`` mixture variances :math:`v_{kt} = r_k c_t + s_k^2 + a`
 
 Working in log space throughout (log-sum-exp for the mixture, never a raw density) is
 what makes the computation immune to the underflow that affects the original
@@ -84,8 +91,8 @@ def _estep(xp: Any, ch: Chunk, logprior: Any, c: Any, a: float) -> tuple[Any, An
 def em_pass(xp: Any, ch: Chunk, tb: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     r"""Fused E-step and M-step sufficient statistics.
 
-    Tables ``tb``
-    -------------
+    .. rubric:: Tables ``tb``
+
     ``logprior``, ``cw``, ``aw``
         Define the posterior weights (the "old" parameters of the EM iteration).
     ``ce``, ``ae`` (optional)
@@ -96,13 +103,16 @@ def em_pass(xp: Any, ch: Chunk, tb: dict[str, Any]) -> tuple[dict[str, Any], dic
     ``want_e``, ``want_m``
         Which groups of statistics to return.
 
-    Returned sums (all of shape ``(T,)`` unless noted)
-    -------------------------------------------------
-    ``lse``  (scalar)  :math:`\sum_k \mathrm{lse}_k`
-    ``n_t``            :math:`\sum_k w_{kt}` — expected number of SNPs in configuration ``t``
-    ``a0``, ``a1``     :math:`\sum_k \{1, r_k\}\, w_{kt}\, q_{kt}(u_{kt}-1)`
+    .. rubric:: Returned sums (all of shape ``(T,)`` unless noted)
+
+    ``lse`` (scalar)
+        :math:`\sum_k \mathrm{lse}_k`
+    ``n_t``
+        :math:`\sum_k w_{kt}` — expected number of SNPs in configuration ``t``
+    ``a0``, ``a1``
+        :math:`\sum_k \{1, r_k\}\, w_{kt}\, q_{kt}(u_{kt}-1)`
     ``d0``, ``d1``, ``d2``
-                       :math:`\sum_k \{1, r_k, r_k^2\}\, w_{kt}\, q_{kt}^2 (1-2u_{kt})`
+        :math:`\sum_k \{1, r_k, r_k^2\}\, w_{kt}\, q_{kt}^2 (1-2u_{kt})`
 
     With :math:`\partial_v \log f = \tfrac12 q(u-1)` and
     :math:`\partial_v^2 \log f = \tfrac12 q^2(1-2u)`, the host assembles the gradient and

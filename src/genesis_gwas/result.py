@@ -77,8 +77,11 @@ class FitResult:
     c0
         Truncation level in force at the end of the fit.
     n_iter, converged, status
-        EM bookkeeping; ``status`` is ``"converged"``, ``"max_iter"``, ``"stalled"`` or
-        ``"legacy_break"``.
+        ``n_iter`` is the number of EM iterations. ``converged`` says whether the reported
+        estimate is a converged solution: the EM met its stopping rule, or Newton
+        polishing reached a stationary point from where the EM ran out of iterations.
+        ``status`` is ``"converged"``, ``"max_iter"``, ``"stalled"`` or ``"legacy_break"``;
+        the status of the EM phase alone is kept in ``diagnostics["em_status"]``.
     n_snps, M, mean_n
         Number of GWAS markers analysed, number of reference SNPs, mean sample size.
     information, J, ds
@@ -146,7 +149,7 @@ class FitResult:
 
     @property
     def params(self) -> dict[str, float]:
-        """``{parameter name: estimate}``."""
+        """Estimates as a dictionary keyed by parameter name."""
         return {k: float(v) for k, v in zip(self.param_names, self.estimates, strict=True)}
 
     @property

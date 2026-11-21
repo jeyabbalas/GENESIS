@@ -322,7 +322,17 @@ def fit(
             for i, (s, r) in enumerate(runs)
         ]
 
-        if not emres.converged:
+        # The estimate is converged if the EM met its criteria or, failing that, Newton
+        # polishing reached a stationary point from where the EM stopped.
+        polished = polish_info is not None and polish_info["status"] == "converged"
+        final_converged = emres.converged or (polished and emres.status == "max_iter")
+        final_status = "converged" if final_converged else emres.status
+        if polished and not emres.converged and emres.status == "max_iter":
+            notes.append(
+                f"The EM used all {cfg.max_iter} iterations; Newton polishing then converged to a "
+                "stationary point of the likelihood, which is the reported estimate."
+            )
+        if not final_converged:
             msg = {
                 "max_iter": f"EM reached the iteration limit ({cfg.max_iter}) without meeting the "
                 "convergence criteria; consider raising max_iter.",
@@ -341,6 +351,7 @@ def fit(
         ds = aic = bic = float("nan")
         diagnostics: dict[str, Any] = {
             "polish": polish_info,
+            "em_status": emres.status,
             "truncation": lik.truncation(theta).to_dict(),
             "ldsc": ldsc_regression(data).to_dict(),
             "multistart": multistart,
@@ -424,6 +435,26 @@ def fit(
                 se[spec.param_names.index(name)] = np.nan
             ic = information_criteria(loglik, ds, float(np.mean(data.n)), bic_gamma)
             aic, bic = ic["aic"], ic["bic"]
+
+            # The other sandwich convention, so that both sets of standard errors are
+            # available from one fit: J_original = J_paper + sum_k S_k S_k'.
+            fidx = np.flatnonzero(free)
+            outer = (si.scores.T @ si.scores)[np.ix_(fidx, fidx)]
+            j_alt = J[np.ix_(fidx, fidx)] + (-outer if double_count else outer)
+            inv_f = sw.inv_information[np.ix_(fidx, fidx)]
+            cov_alt = inv_f @ j_alt @ inv_f
+            se_alt = np.full(spec.n_params, np.nan)
+            with np.errstate(invalid="ignore"):
+                se_alt[fidx] = np.sqrt(np.where(np.diag(cov_alt) >= 0, np.diag(cov_alt), np.nan))
+            ds_alt = float(np.trace(inv_f @ j_alt))
+            diagnostics["sandwich_alt"] = {
+                "convention": "paper" if double_count else "original_double_count",
+                "se": se_alt,
+                "ds": ds_alt,
+                "bic": information_criteria(loglik, ds_alt, float(np.mean(data.n)), bic_gamma)[
+                    "bic"
+                ],
+            }
 
             # Remaining distance to the stationary point of the EM objective, estimated
             # by one Newton step and expressed in standard-error units.
@@ -514,8 +545,8 @@ def fit(
         loglik_unnorm=loglik_unnorm,
         c0=emres.c0,
         n_iter=emres.n_iter,
-        converged=emres.converged,
-        status=emres.status,
+        converged=final_converged,
+        status=final_status,
         n_snps=data.K,
         M=data.M,
         mean_n=float(np.mean(data.n)),

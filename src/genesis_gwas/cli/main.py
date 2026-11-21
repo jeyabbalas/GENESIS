@@ -440,7 +440,9 @@ def build_parser() -> argparse.ArgumentParser:
         "swarm",
         help="write a Biowulf swarm file that fits many traits",
         description="Create a swarm file (one `genesis fit` command per summary-statistics file) "
-        "and print the `swarm` command to submit it. Nothing is submitted.",
+        "and print the `swarm` command to submit it. Nothing is submitted. Everything after a "
+        "literal `--` is passed on to every `genesis fit` command, e.g. "
+        "`genesis swarm *.tsv.gz --outdir results -- --model both --n-cases NCASE --n-controls NCONTROL`.",
     )
     p.add_argument("sumstats", nargs="+", help="summary-statistics files (one job each)")
     p.add_argument("--outdir", required=True, help="directory for results")
@@ -454,13 +456,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--activate", default="", help="shell line that activates the environment in each job"
     )
-    p.add_argument(
-        "fit_args",
-        nargs=argparse.REMAINDER,
-        help="options after `--` are passed to every `genesis fit`",
-    )
     _add_logging_options(p)
-    p.set_defaults(func="swarm")
+    p.set_defaults(func="swarm", fit_args=[])
 
     # ----------------------------------------------------------------- demo
     p = sub.add_parser("demo", help="run the packaged chromosome-22 example end to end")
@@ -492,11 +489,16 @@ def _configure_logging(args: argparse.Namespace, logfile: str | None = None) -> 
         else (logging.DEBUG if getattr(args, "verbose", False) else logging.INFO)
     )
     root = logging.getLogger("genesis_gwas")
-    root.setLevel(level)
-    root.handlers.clear()
+    # The logger passes everything; each handler applies its own threshold, so that
+    # --quiet silences the terminal without emptying the log file.
+    root.setLevel(logging.DEBUG)
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+        handler.close()
     fmt = logging.Formatter("%(asctime)s  %(message)s", datefmt="%H:%M:%S")
     stream = logging.StreamHandler(sys.stderr)
     stream.setFormatter(fmt)
+    stream.setLevel(level)
     root.addHandler(stream)
     if logfile:
         from pathlib import Path
@@ -504,7 +506,7 @@ def _configure_logging(args: argparse.Namespace, logfile: str | None = None) -> 
         Path(logfile).parent.mkdir(parents=True, exist_ok=True)
         fh = logging.FileHandler(logfile, mode="w")
         fh.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s %(message)s"))
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(logging.DEBUG if getattr(args, "verbose", False) else logging.INFO)
         root.addHandler(fh)
     root.propagate = False
 
@@ -523,7 +525,16 @@ def _configure_logging(args: argparse.Namespace, logfile: str | None = None) -> 
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point of the ``genesis`` command. Returns the process exit status."""
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw = list(sys.argv[1:] if argv is None else argv)
+    passthrough: list[str] = []
+    if raw and raw[0] == "swarm" and "--" in raw:
+        # `genesis swarm FILES... [options] -- <options for every genesis fit>`
+        cut = raw.index("--")
+        raw, passthrough = raw[:cut], raw[cut + 1 :]
+    args = parser.parse_args(raw)
+    args.argv = [*raw, *(["--", *passthrough] if passthrough else [])]
+    if passthrough:
+        args.fit_args = passthrough
     if not getattr(args, "func", None):
         parser.print_help()
         return 2

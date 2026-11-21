@@ -90,6 +90,19 @@ def test_polishing_reaches_the_stationary_point(m2, m2_em_only):
     assert "Newton polishing step" in m2.summary()
 
 
+def test_both_sandwich_conventions_are_reported(m2_em_only, m2_legacy):
+    """Each fit carries the standard errors of the other convention in its diagnostics."""
+    alt = m2_em_only.diagnostics["sandwich_alt"]
+    assert alt["convention"] == "original_double_count"
+    np.testing.assert_allclose(alt["se"], m2_legacy.se, rtol=1e-7)
+    assert alt["ds"] == pytest.approx(m2_legacy.ds, rel=1e-8)
+    assert alt["bic"] == pytest.approx(m2_legacy.bic, rel=1e-10)
+    back = m2_legacy.diagnostics["sandwich_alt"]
+    assert back["convention"] == "paper"
+    np.testing.assert_allclose(back["se"], m2_em_only.se, rtol=1e-7)
+    assert back["ds"] == pytest.approx(m2_em_only.ds, rel=1e-8)
+
+
 def test_double_count_switch_alone_reproduces_legacy_covariance(data, m2_legacy):
     res = gg.fit(data, 2, threads=2, sandwich_double_count=True, polish=False)
     np.testing.assert_allclose(res.covariance, m2_legacy.covariance, rtol=1e-7)

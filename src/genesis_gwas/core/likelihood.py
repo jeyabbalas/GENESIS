@@ -284,7 +284,8 @@ class CompositeLikelihood:
     def weights(self, theta: np.ndarray) -> np.ndarray:
         r"""Posterior weights :math:`w_{kt}` of every latent configuration, shape ``(K, T)``.
 
-        Column ``t`` corresponds to row ``t`` of :attr:`J`. For the three-component model
+        Column ``t`` corresponds to row ``t`` of the configuration table ``self.J``
+        (see :func:`~genesis_gwas.core.spec.config_table`). For the three-component model
         the layout ``t = j1 * (c0 + 1) + j2`` matches the original ``weight3()``.
         Allocates ``K x T`` doubles — use on subsets of SNPs.
         """

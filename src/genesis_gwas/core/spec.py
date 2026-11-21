@@ -141,7 +141,7 @@ class ModelSpec:
 
     @property
     def name(self) -> str:
-        """Short model label: ``"M2"`` or ``"M3"``."""
+        """Short model label, ``"M2"`` or ``"M3"``."""
         return f"M{self.n_components}"
 
     @cached_property

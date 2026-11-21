@@ -62,8 +62,6 @@ class Neighborhoods:
     indices
         Concatenated neighbour lists; ``indices[indptr[i]:indptr[i + 1]]`` are the
         reference rows tagged by reference SNP ``i`` (itself included).
-    n_ref
-        Number of reference SNPs.
     """
 
     indptr: np.ndarray

@@ -205,7 +205,7 @@ def cmd_fit(args: argparse.Namespace) -> int:
     prefix.parent.mkdir(parents=True, exist_ok=True)
     _configure_logging(args, logfile=f"{prefix}.log")
     log.info("genesis-gwas %s", __version__)
-    log.info("Command: genesis %s", " ".join(shlex.quote(a) for a in sys.argv[1:]))
+    log.info("Command: genesis %s", " ".join(shlex.quote(str(a)) for a in args.argv))
     t0 = time.perf_counter()
 
     plan = _plan(args)
@@ -540,7 +540,7 @@ def cmd_swarm(args: argparse.Namespace) -> int:
     from genesis_gwas.hpc.swarm import write_swarm
 
     _configure_logging(args)
-    extra = [a for a in args.fit_args if a != "--"]
+    extra = list(args.fit_args)
     command = write_swarm(
         args.sumstats,
         outdir=args.outdir,
@@ -584,15 +584,17 @@ def cmd_demo(args: argparse.Namespace) -> int:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", gg.exceptions.GenesisWarning)
         m2 = gg.fit(data, 2, plan=plan)
-        m3 = gg.fit(data, 3, starting=m2, plan=plan)
+        # A short EM followed by Newton polishing keeps the demo to a few seconds.
+        m3 = gg.fit(data, 3, starting=m2, plan=plan, em=gg.EMConfig(max_iter=250))
     cmp = gg.select_model([m2, m3])
     for res in (m2, m3):
         res.to_json(f"{prefix}.M{res.n_components}.json")
         print(res.summary() + "\n")
     print(cmp.summary())
     print(
-        "\nNote: one chromosome carries little information; these numbers only show that the "
-        "pipeline works. With M = 15,633 they refer to chromosome 22 alone."
+        "\nNote: this is a smoke test. One chromosome carries too little information to separate "
+        "two clusters of effect sizes, so the three-component fit is expected to be flagged as not "
+        "identified and M2 to be selected; with M = 15,633 the numbers refer to chromosome 22 alone."
     )
     print(f"\nResults: {prefix}.M2.json, {prefix}.M3.json")
     return 0
