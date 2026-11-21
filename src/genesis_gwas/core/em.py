@@ -578,11 +578,50 @@ def newton_polish(
 # Legacy policy: literal port of EM_func / EM_func3
 # ---------------------------------------------------------------------------
 def _legacy_newton(grad: np.ndarray, hess: np.ndarray) -> np.ndarray:
-    """Raw Newton increment ``-H^{-1} g`` (no safeguards), as in ``onestep_varcomponent*``."""
-    try:
-        return -np.linalg.solve(hess, grad)
-    except np.linalg.LinAlgError:
-        return np.full_like(grad, np.nan)
+    """Raw Newton increment ``-H^{-1} g`` (no safeguards), as in ``onestep_varcomponent*``.
+
+    The original inverts the 2x2 / 3x3 Hessian with explicit cofactor formulas. The same
+    expressions are used here (rather than an LU solve) so that, when a collapsed
+    variance component makes the system nearly singular, the rounding errors — which a
+    chaotic sequence of resets and ``c0`` changes then amplifies — are the same too.
+    """
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        if grad.size == 2:
+            s1, s2 = grad
+            dd1, dd12, dd2 = hess[0, 0], hess[0, 1], hess[1, 1]
+            det = dd1 * dd2 - dd12**2
+            return -np.array([(dd2 * s1 - dd12 * s2) / det, (dd1 * s2 - dd12 * s1) / det])
+        s1, s2, s3 = grad
+        dd11, dd22, dd33 = hess[0, 0], hess[1, 1], hess[2, 2]
+        dd12, dd13, dd23 = hess[0, 1], hess[0, 2], hess[1, 2]
+        det = (
+            dd11 * (dd33 * dd22 - dd23 * dd23)
+            - dd12 * (dd33 * dd12 - dd23 * dd13)
+            + dd13 * (dd23 * dd12 - dd22 * dd13)
+        )
+        inv_det = 1.0 / det
+        return -np.array(
+            [
+                inv_det
+                * (
+                    (dd33 * dd22 - dd23 * dd23) * s1
+                    - (dd33 * dd12 - dd23 * dd13) * s2
+                    + (dd23 * dd12 - dd22 * dd13) * s3
+                ),
+                inv_det
+                * (
+                    -(dd33 * dd12 - dd13 * dd23) * s1
+                    + (dd33 * dd11 - dd13 * dd13) * s2
+                    - (dd23 * dd11 - dd12 * dd13) * s3
+                ),
+                inv_det
+                * (
+                    (dd23 * dd12 - dd13 * dd22) * s1
+                    - (dd23 * dd11 - dd13 * dd12) * s2
+                    + (dd22 * dd11 - dd12 * dd12) * s3
+                ),
+            ]
+        )
 
 
 def _run_legacy(
