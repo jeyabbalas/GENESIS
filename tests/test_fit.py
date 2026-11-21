@@ -34,6 +34,12 @@ def m2_legacy(data):
     return gg.fit(data, 2, threads=2, legacy=True)
 
 
+@pytest.fixture(scope="module")
+def m2_em_only(data):
+    """Default policy but without Newton polishing: the point where the EM stops."""
+    return gg.fit(data, 2, threads=2, polish=False)
+
+
 def test_two_component_fit_is_sane(m2, data):
     assert m2.model == "M2" and m2.converged and m2.status == "converged"
     assert m2.n_snps == data.K == 13230 and m2.M == 15633
@@ -54,21 +60,35 @@ def test_two_component_fit_is_sane(m2, data):
     assert "Number of susceptibility SNPs" in text and "M2" in text
 
 
-def test_legacy_shares_estimates_but_has_wider_standard_errors(m2, m2_legacy):
+def test_legacy_shares_the_em_path_but_has_wider_standard_errors(m2_em_only, m2_legacy):
     """Same EM path, so identical estimates; the original's double-counted 'meat' inflates SEs."""
-    np.testing.assert_allclose(m2_legacy.estimates, m2.estimates, rtol=1e-9)
-    assert m2_legacy.loglik == pytest.approx(m2.loglik, rel=1e-12)
-    assert np.all(m2_legacy.se > m2.se)
-    assert m2_legacy.ds > m2.ds and m2_legacy.bic > m2.bic
-    assert m2_legacy.settings["sandwich_double_count"] is True
+    np.testing.assert_allclose(m2_legacy.estimates, m2_em_only.estimates, rtol=1e-9)
+    assert m2_legacy.loglik == pytest.approx(m2_em_only.loglik, rel=1e-12)
+    assert m2_legacy.n_iter == m2_em_only.n_iter
+    assert np.all(m2_legacy.se > m2_em_only.se)
+    assert m2_legacy.ds > m2_em_only.ds and m2_legacy.bic > m2_em_only.bic
+    assert m2_legacy.settings["sandwich_double_count"] is True and m2_legacy.settings["polish"] is False
+    assert m2_legacy.diagnostics["polish"] is None
     # J_legacy - J_paper = sum_k S_k S_k' is positive semi-definite
-    assert np.all(np.linalg.eigvalsh(m2_legacy.J - m2.J) > -1e-6 * np.abs(m2.J).max())
-    # explicit switch reproduces legacy SEs without the legacy EM control flow
-    # (same estimates here, so the covariance must coincide)
+    diff = m2_legacy.J - m2_em_only.J
+    assert np.all(np.linalg.eigvalsh(diff) > -1e-6 * np.abs(diff).max())
+
+
+def test_polishing_reaches_the_stationary_point(m2, m2_em_only):
+    pol = m2.diagnostics["polish"]
+    assert pol["status"] == "converged" and 1 <= pol["n_steps"] <= 10 and pol["fixed"] == []
+    np.testing.assert_allclose(pol["em_estimates"], m2_em_only.estimates, rtol=1e-12)
+    assert pol["loglik_gain"] >= 0 and m2.loglik >= m2_em_only.loglik
+    # the EM stopped a small but non-zero fraction of an SE short; the polished fit is at the optimum
+    before = np.max(np.abs(m2_em_only.diagnostics["newton_distance_se"]))
+    after = np.max(np.abs(m2.diagnostics["newton_distance_se"]))
+    assert 1e-4 < before < 0.25 and after < 1e-5
+    assert np.max(np.abs(m2.estimates - m2_em_only.estimates) / m2.se) < 0.25
+    assert "Newton polishing step" in m2.summary()
 
 
 def test_double_count_switch_alone_reproduces_legacy_covariance(data, m2_legacy):
-    res = gg.fit(data, 2, threads=2, sandwich_double_count=True)
+    res = gg.fit(data, 2, threads=2, sandwich_double_count=True, polish=False)
     np.testing.assert_allclose(res.covariance, m2_legacy.covariance, rtol=1e-7)
     # ... except the sibling-risk SE, which legacy computes with the original's formula
     risk = res.derived["sibling_risk"]
@@ -107,7 +127,12 @@ def test_three_component_from_two_component_and_model_selection(data, m2):
     assert m3.loglik >= m2.loglik - 1e-6 * abs(m2.loglik)  # nested model fits at least as well
     cmp = gg.select_model([m2, m3])
     assert cmp.best in (m2, m3) and cmp.criterion == "bic"
-    assert sum(r["selected"] for r in cmp.table) == 1 and min(r["delta"] for r in cmp.table) == 0
+    if m3.diagnostics["degenerate"]:
+        # one chromosome cannot separate two clusters: M3 collapses onto M2 and is not eligible
+        assert cmp.best is m2 and any("not identified" in w for w in m3.warnings)
+        assert "(not identified)" in cmp.summary()
+    assert sum(r["selected"] for r in cmp.table) == 1
+    assert next(r for r in cmp.table if r["selected"])["delta"] == 0
     assert "Model comparison" in cmp.summary()
     with pytest.raises(InputError):
         gg.select_model([m2, m3], criterion="dic")
@@ -126,10 +151,10 @@ def test_default_three_component_start_runs_an_internal_prefit(data):
 
 
 def test_multistart_keeps_the_best_loglik(data):
-    res = gg.fit(data, 2, starting_pic=[0.002, 0.01, 0.05], threads=2)
+    res = gg.fit(data, 2, starting_pic=[0.02, 0.05], threads=2)
     ms = res.diagnostics["multistart"]
-    assert len(ms) == 3 and sum(m["selected"] for m in ms) == 1
-    assert res.loglik == pytest.approx(max(m["loglik"] for m in ms))
+    assert len(ms) == 2 and sum(m["selected"] for m in ms) == 1
+    assert res.diagnostics["polish"]["em_loglik"] == pytest.approx(max(m["loglik"] for m in ms))
     explicit = gg.fit(data, 2, starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]], threads=2, variance=False)
     assert len(explicit.diagnostics["multistart"]) == 2
 

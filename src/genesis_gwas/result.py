@@ -293,7 +293,8 @@ class FitResult:
             f"  GWAS markers analysed (K)     : {self.n_snps:,}",
             f"  Reference-panel SNPs (M)      : {self.M:,}",
             f"  Mean sample size              : {self.mean_n:,.1f}",
-            f"  EM                            : {self.status} after {self.n_iter:,} iteration(s), c0 = {self.c0}",
+            f"  EM                            : {self.status} after {self.n_iter:,} iteration(s), c0 = {self.c0}"
+            + self._polish_note(),
             f"  Composite log-likelihood      : {self.loglik:,.4f}",
         ]
         if math.isfinite(self.bic):
@@ -331,6 +332,14 @@ class FitResult:
             lines += [f"    - {w}" for w in self.warnings]
         return "\n".join(lines)
 
+    def _polish_note(self) -> str:
+        pol = self.diagnostics.get("polish")
+        if not pol:
+            return ""
+        if pol.get("status") == "converged":
+            return f"; {pol.get('n_steps', 0)} Newton polishing step(s)"
+        return f"; Newton polishing: {pol.get('status')}"
+
     def __str__(self) -> str:
         return self.summary()
 
@@ -361,7 +370,7 @@ class ModelComparison:
             f"  {'Model':<8}{'logLik':>18}{'d_s':>10}{'AIC':>18}{'BIC':>18}{'delta':>12}",
         ]
         for row in self.table:
-            mark = "  <- selected" if row["selected"] else ""
+            mark = "  <- selected" if row["selected"] else ("  (not identified)" if row.get("degenerate") else "")
             lines.append(
                 f"  {row['model']:<8}{row['loglik']:>18,.3f}{row['ds']:>10.3f}{row['aic']:>18,.3f}"
                 f"{row['bic']:>18,.3f}{row['delta']:>12.3f}{mark}"
@@ -372,7 +381,10 @@ class ModelComparison:
 def select_model(fits: list[FitResult], criterion: str = "bic") -> ModelComparison:
     """Choose between fitted models with the composite-likelihood BIC (default) or AIC.
 
-    All candidates must have been fitted to the same data.
+    All candidates must have been fitted to the same data. A fit flagged as degenerate
+    (a three-component fit whose variance components merged or collapsed, i.e. a model
+    that is not identified for the data) is never selected when a non-degenerate
+    candidate exists.
     """
     if criterion not in ("bic", "aic"):
         raise InputError("criterion must be 'bic' or 'aic'")
@@ -385,7 +397,11 @@ def select_model(fits: list[FitResult], criterion: str = "bic") -> ModelComparis
         raise InputError(
             f"{criterion.upper()} is unavailable for at least one fit (was the variance step skipped?)"
         )
-    best_i = int(np.argmin(vals))
+    # A degenerate fit (e.g. M3 whose two variance components merged) is not a valid
+    # candidate when a well-identified alternative exists.
+    eligible = [i for i, f in enumerate(fits) if not f.diagnostics.get("degenerate", False)]
+    pool = eligible if eligible else list(range(len(fits)))
+    best_i = min(pool, key=lambda i: vals[i])
     table = [
         {
             "model": f.model,
@@ -395,6 +411,7 @@ def select_model(fits: list[FitResult], criterion: str = "bic") -> ModelComparis
             "bic": f.bic,
             "delta": v - vals[best_i],
             "selected": i == best_i,
+            "degenerate": bool(f.diagnostics.get("degenerate", False)),
         }
         for i, (f, v) in enumerate(zip(fits, vals))
     ]

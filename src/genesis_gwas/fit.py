@@ -15,7 +15,7 @@ from genesis_gwas._version import __version__
 from genesis_gwas.compute import ComputePlan, resolve_plan
 from genesis_gwas.core.data import ModelData
 from genesis_gwas.core.derived import canonicalize_m3, derived_quantities
-from genesis_gwas.core.em import EMConfig, EMResult, run_em
+from genesis_gwas.core.em import EMConfig, EMResult, newton_polish, run_em
 from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec
@@ -132,6 +132,7 @@ def fit(
     em: EMConfig | None = None,
     neighborhoods: Neighborhoods | None = None,
     variance: bool = True,
+    polish: bool | None = None,
     bic_gamma: float = 0.5,
     legacy: bool = False,
     sandwich_double_count: bool | None = None,
@@ -176,6 +177,13 @@ def fit(
         standard errors are too small for real GWAS data (a warning is issued).
     variance
         Compute standard errors and information criteria (one extra pass over the data).
+    polish
+        After the EM has met its stopping rule, take a few Newton steps to the exact
+        maximiser of the composite likelihood (see
+        :func:`genesis_gwas.core.em.newton_polish`). Default: ``True``, except in
+        ``legacy`` mode, where the estimate is the point at which the original's EM
+        stops. The EM estimate before polishing is kept in
+        ``result.diagnostics["polish"]``.
     bic_gamma
         Tuning constant of the modified BIC, in ``[0, 1]`` (default 0.5).
     legacy
@@ -273,6 +281,34 @@ def fit(
         start_used, emres = runs[best_i]
         lik.set_c0(emres.c0)
         theta = emres.theta.copy()
+        loglik, loglik_unnorm = emres.loglik, emres.loglik_unnorm
+        do_polish = (not legacy) if polish is None else bool(polish)
+        polish_info: dict[str, Any] | None = None
+        if do_polish and emres.status != "stalled":
+            t0 = time.perf_counter()
+            pol = newton_polish(lik, theta, cfg)
+            timings["polish_seconds"] = time.perf_counter() - t0
+            polish_info = {
+                "status": pol.status,
+                "n_steps": pol.n_steps,
+                "last_step_naive_se": pol.last_step,
+                "fixed": list(pol.fixed),
+                "em_estimates": emres.theta.copy(),
+                "em_loglik": emres.loglik,
+                "loglik_gain": pol.loglik - emres.loglik,
+            }
+            if pol.status in ("converged", "max_steps", "no_ascent") and pol.n_steps > 0:
+                theta, loglik, loglik_unnorm = pol.theta.copy(), pol.loglik, pol.loglik_unnorm
+            if pol.status != "converged":
+                msg = {
+                    "not_positive_definite": "Newton polishing was skipped because the observed "
+                    "information is not positive definite at the EM estimate; the EM estimate is "
+                    "reported.",
+                    "no_ascent": "Newton polishing stopped early (no step increased the "
+                    "likelihood); the best point found is reported.",
+                    "max_steps": "Newton polishing reached its step limit before converging.",
+                }[pol.status]
+                notes.append(msg)
         multistart = [
             {
                 "starting": s,
@@ -304,6 +340,7 @@ def fit(
         se = np.full(spec.n_params, np.nan)
         ds = aic = bic = float("nan")
         diagnostics: dict[str, Any] = {
+            "polish": polish_info,
             "truncation": lik.truncation(theta).to_dict(),
             "ldsc": ldsc_regression(data).to_dict(),
             "multistart": multistart,
@@ -312,6 +349,26 @@ def fit(
         if prefits:
             diagnostics["prefit_m2"] = prefits
         labels_swapped = False
+        degenerate = False
+        if spec.n_components == 3:
+            s1, s2 = float(theta[2]), float(theta[3])
+            merged = abs(s1 - s2) <= 1e-2 * max(s1, s2)
+            empty = min(s1, s2) <= 1e-11
+            if merged or empty:
+                degenerate = True
+                why = (
+                    "the two variance components have merged (sigmasq1 = sigmasq2 to within 1%)"
+                    if merged
+                    else "one variance component has collapsed to zero"
+                )
+                msg = (
+                    f"The three-component model is not identified for these data: {why}. "
+                    "p1 and the cluster-specific quantities are not meaningful and the standard "
+                    "errors are unreliable; use the two-component model."
+                )
+                notes.append(msg)
+                warnings.warn(msg, NumericalWarning, stacklevel=2)
+        diagnostics["degenerate"] = degenerate
         if variance:
             t0 = time.perf_counter()
             si = lik.score_info(theta)
@@ -321,7 +378,20 @@ def fit(
                 # entry of its information matrix lacks the E[r r'] term.
                 info_used = si.information.copy()
                 info_used[2, 0] += si.e_rr[2, 0]
-            free = np.ones(spec.n_params, dtype=bool) if legacy else spec.free
+            free = np.ones(spec.n_params, dtype=bool) if legacy else spec.free.copy()
+            bound_names: list[str] = []
+            if not legacy:
+                # Parameters on a bound are not free: the remaining standard errors are
+                # conditional on the constraint and theirs are reported as NaN.
+                if spec.n_components == 3:
+                    for i, bounds in ((0, cfg.pic_bounds), (1, cfg.p1_bounds)):
+                        if np.isclose(theta[i], bounds[0], rtol=1e-9) or np.isclose(theta[i], bounds[1], rtol=1e-9):
+                            free[i] = False
+                            bound_names.append(spec.param_names[i])
+                for i in spec.idx_sig:
+                    if theta[i] <= 1e-11:
+                        free[i] = False
+                        bound_names.append(spec.param_names[i])
             if nbh is None:
                 msg = (
                     "No tagging neighbourhoods were supplied: the sandwich estimator treats "
@@ -345,12 +415,14 @@ def fit(
                 warnings.warn(w.message, w.category, stacklevel=2)
             cov, info, J, ds = sw.covariance, sw.information, sw.J, sw.ds
             se = sw.se
-            ic = information_criteria(emres.loglik, ds, float(np.mean(data.n)), bic_gamma)
+            for name in bound_names:
+                se[spec.param_names.index(name)] = np.nan
+            ic = information_criteria(loglik, ds, float(np.mean(data.n)), bic_gamma)
             aic, bic = ic["aic"], ic["bic"]
 
             # Remaining distance to the stationary point of the EM objective, estimated
             # by one Newton step and expressed in standard-error units.
-            idx = np.flatnonzero(spec.free)
+            idx = np.flatnonzero(free & spec.free)
             inv_sym, _ = scaled_inverse(si.information[np.ix_(idx, idx)])
             step = np.zeros(spec.n_params)
             step[idx] = inv_sym @ si.scores.sum(axis=0)[idx]
@@ -361,12 +433,12 @@ def fit(
             diagnostics["information_pd"] = sw.information_pd
             diagnostics["information_condition"] = sw.condition_number
             finite = np.abs(dist[np.isfinite(dist)])
-            if finite.size and finite.max() > 0.25 and not legacy:
+            if finite.size and finite.max() > 0.25 and not legacy and not degenerate:
                 msg = (
-                    f"The EM stopped about {finite.max():.2f} standard errors from the "
-                    "likelihood stationary point (the stopping rule of the original software is "
-                    "loose). Tighten the tolerances (EMConfig / --tol-scale) for a fully "
-                    "converged estimate."
+                    f"The estimate is about {finite.max():.2f} standard errors from the "
+                    "likelihood stationary point: the EM stopping rule (that of the original "
+                    "software) is loose and Newton polishing was disabled or did not converge. "
+                    "Enable polishing or tighten the tolerances (EMConfig / --tol-scale)."
                 )
                 notes.append(msg)
                 warnings.warn(msg, ConvergenceWarning, stacklevel=2)
@@ -384,16 +456,18 @@ def fit(
 
         at_bound = []
         if spec.n_components == 3:
-            pic_hat, p1_hat = float(emres.theta[0]), float(emres.theta[1])
-            if np.isclose(pic_hat, cfg.pic_bounds[0]) or np.isclose(pic_hat, cfg.pic_bounds[1]):
-                at_bound.append("pic")
-            if np.isclose(p1_hat, cfg.p1_bounds[0]) or np.isclose(p1_hat, cfg.p1_bounds[1]):
-                at_bound.append("p1")
-        if at_bound:
+            bounds_by_name = {"pic": cfg.pic_bounds, "p1": cfg.p1_bounds}
+            if labels_swapped:  # p1 was mapped to 1 - p1
+                bounds_by_name["p1"] = (1.0 - cfg.p1_bounds[1], 1.0 - cfg.p1_bounds[0])
+            for name, (lo, hi) in bounds_by_name.items():
+                val = float(theta[spec.param_names.index(name)])
+                if np.isclose(val, lo, rtol=1e-9) or np.isclose(val, hi, rtol=1e-9):
+                    at_bound.append(name)
+        if at_bound and not degenerate:
             msg = (
                 f"Parameter(s) {', '.join(at_bound)} ended on a bound; the three-component model "
-                "may be over-parameterised for these data (compare with M2 by BIC) and the "
-                "standard errors do not account for the constraint."
+                "may be over-parameterised for these data (compare with M2 by BIC). Standard "
+                "errors of the other parameters are conditional on the constraint."
             )
             notes.append(msg)
         diagnostics["at_bound"] = at_bound
@@ -415,6 +489,7 @@ def fit(
         "sandwich_double_count": double_count,
         "bic_gamma": bic_gamma,
         "variance": variance,
+        "polish": do_polish,
         "has_neighborhoods": nbh is not None,
     }
     provenance = {
@@ -430,8 +505,8 @@ def fit(
         estimates=theta,
         se=se,
         covariance=cov,
-        loglik=emres.loglik,
-        loglik_unnorm=emres.loglik_unnorm,
+        loglik=loglik,
+        loglik_unnorm=loglik_unnorm,
         c0=emres.c0,
         n_iter=emres.n_iter,
         converged=emres.converged,

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import tests.upstream_port as up
-from genesis_gwas.core.em import EMConfig, newton_direction, run_em
+from genesis_gwas.core.em import EMConfig, newton_direction, newton_polish, run_em
 from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec
@@ -101,24 +101,34 @@ def test_default_equals_legacy_when_no_safeguard_triggers(medium_data):
     assert default.loglik == pytest.approx(legacy.loglik, rel=1e-12)
 
 
-@pytest.mark.parametrize("n_components", [2, 3])
-def test_em_objective_is_monotone(medium_data, n_components):
+def test_em_objective_is_monotone(medium_data):
     from genesis_gwas.compute import resolve_plan
 
-    start = np.array([0.01, 1e-4, 1e-6]) if n_components == 2 else np.array([0.01, 1 / 9, 5e-4, 5e-5, 1e-6])
     with Engine(medium_data, resolve_plan("cpu", threads=2)) as eng:
-        lik = CompositeLikelihood(ModelSpec(n_components), eng, 10)
-        res = run_em(lik, start, EMConfig(max_iter=150))
+        lik = CompositeLikelihood(ModelSpec(2), eng, 10)
+        res = run_em(lik, np.array([0.01, 1e-4, 1e-6]), EMConfig(max_iter=150))
     llu = np.array([h["loglik_unnorm"] for h in res.history])
     assert np.all(np.diff(llu) >= -1e-9 * np.abs(llu[:-1]))
 
 
-def test_recovers_three_component_truth(medium_data):
+@pytest.fixture(scope="module")
+def m3_run(medium_data):
+    """One converged three-component EM run shared by several tests (it is the slow part)."""
     from genesis_gwas.compute import resolve_plan
 
-    with Engine(medium_data, resolve_plan("cpu", threads=2)) as eng:
+    with Engine(medium_data, resolve_plan("cpu", threads=4)) as eng:
         lik = CompositeLikelihood(ModelSpec(3), eng, 10)
-        res = run_em(lik, np.array([0.01, 1 / 9, 5e-4, 5e-5, 2e-6]), EMConfig())
+        em = run_em(lik, np.array([0.01, 1 / 9, 5e-4, 5e-5, 2e-6]), EMConfig())
+        pol = newton_polish(lik, em.theta)
+        si = lik.score_info(pol.theta)
+    return em, pol, si
+
+
+def test_recovers_three_component_truth(m3_run):
+    res = m3_run[0]
+    assert res.status == "converged"
+    llu = np.array([h["loglik_unnorm"] for h in res.history])
+    assert np.all(np.diff(llu) >= -1e-9 * np.abs(llu[:-1]))  # monotone ascent throughout
     pic, p1, s1, s2, a = res.theta
     # truth: pic=0.02, p1=0.15, sigmasq=(4e-4, 4e-5), a=1e-6 (20k independent markers)
     assert pic == pytest.approx(0.02, rel=0.25)
@@ -224,3 +234,61 @@ def test_emconfig_validation():
         EMConfig(p1_bounds=(0.5, 0.2))
     loose = EMConfig().loosened()
     assert loose.tol_sigmasq == 1e-7 and loose.tol_a == 1e-7 and loose.tol_loglik == 1e-5
+
+
+# ------------------------------------------------------------------ polishing
+def test_newton_polish_finds_the_root_of_the_score_equations(medium_data):
+    from genesis_gwas.compute import resolve_plan
+
+    with Engine(medium_data, resolve_plan("cpu", threads=2)) as eng:
+        lik = CompositeLikelihood(ModelSpec(2), eng, 10)
+        em = run_em(lik, np.array([0.01, 1e-4, 1e-6]), EMConfig())
+        pol = newton_polish(lik, em.theta)
+        si = lik.score_info(pol.theta)
+        # a much longer EM run must approach the same point
+        tight = run_em(lik, em.theta, EMConfig(tol_pic=1e-10, tol_sigmasq=1e-13, tol_a=1e-14,
+                                               tol_loglik=1e-13, max_iter=4000))
+    assert pol.status == "converged" and pol.n_steps >= 1 and pol.fixed == ()
+    assert pol.loglik_unnorm >= em.loglik_unnorm
+    step = np.linalg.solve(si.information, si.scores.sum(axis=0))
+    naive_se = np.sqrt(np.diag(np.linalg.inv(si.information)))
+    assert np.max(np.abs(step) / naive_se) < 1e-5
+    assert np.max(np.abs(tight.theta - pol.theta) / naive_se) < 0.02
+    assert np.max(np.abs(tight.theta - pol.theta)) < np.max(np.abs(em.theta - pol.theta))
+
+
+def test_newton_polish_three_component(m3_run):
+    em, pol, si = m3_run
+    assert pol.status == "converged" and pol.fixed == ()
+    assert pol.loglik_unnorm >= em.loglik_unnorm
+    step = np.linalg.solve(si.information, si.scores.sum(axis=0))
+    naive_se = np.sqrt(np.diag(np.linalg.inv(si.information)))
+    assert np.max(np.abs(step) / naive_se) < 1e-5
+    # the EM had stopped short of this point
+    assert np.max(np.abs(em.theta - pol.theta) / naive_se) > 1e-3
+
+
+def test_newton_polish_respects_bounds_and_fixed_parameters(medium_data):
+    from genesis_gwas.compute import resolve_plan
+
+    cfg = EMConfig(p1_bounds=(1e-7, 0.05), max_iter=80)  # need not converge: Newton finishes the job
+    with Engine(medium_data, resolve_plan("cpu", threads=4)) as eng:
+        lik = CompositeLikelihood(ModelSpec(3), eng, 10)
+        em = run_em(lik, np.array([0.01, 0.04, 5e-4, 5e-5, 1e-6]), cfg)
+        pol = newton_polish(lik, em.theta, cfg)
+        lik0 = CompositeLikelihood(ModelSpec(2, stratification=False), eng, 10)
+        em0 = run_em(lik0, np.array([0.01, 1e-4, 0.0]), EMConfig())
+        pol0 = newton_polish(lik0, em0.theta)
+    assert pol.theta[1] == pytest.approx(0.05) and "p1" in pol.fixed  # truth 0.15 is outside the box
+    assert pol.status == "converged" and pol.loglik_unnorm >= em.loglik_unnorm
+    assert pol0.theta[2] == 0.0 and pol0.fixed == ("a",) and pol0.status == "converged"
+
+
+def test_newton_polish_declines_when_information_is_not_positive_definite(small_data, plan1):
+    with Engine(small_data, plan1) as eng:
+        lik = CompositeLikelihood(ModelSpec(3), eng, 10)
+        # equal variance components: the likelihood is flat in p1, so the information is singular
+        theta = np.array([0.012, 0.2, 6e-5, 6e-5, 1.2e-6])
+        pol = newton_polish(lik, theta)
+    assert pol.status == "not_positive_definite" and pol.n_steps == 0
+    np.testing.assert_array_equal(pol.theta, theta)

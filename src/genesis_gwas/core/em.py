@@ -52,7 +52,7 @@ import numpy as np
 from genesis_gwas.core.likelihood import CompositeLikelihood, EMPass
 from genesis_gwas.exceptions import GenesisError, InputError
 
-__all__ = ["EMConfig", "EMResult", "newton_direction", "run_em"]
+__all__ = ["EMConfig", "EMResult", "PolishResult", "newton_direction", "newton_polish", "run_em"]
 
 
 @dataclass(frozen=True)
@@ -387,6 +387,183 @@ def _run_safeguarded(
         n_backtracks=total_backtracks,
     )
 
+
+# ---------------------------------------------------------------------------
+# Newton polishing
+# ---------------------------------------------------------------------------
+@dataclass
+class PolishResult:
+    """Outcome of :func:`newton_polish`.
+
+    Attributes
+    ----------
+    theta
+        Polished parameter vector.
+    loglik, loglik_unnorm
+        Log-likelihoods at ``theta``.
+    n_steps
+        Number of Newton steps taken.
+    status
+        ``"converged"`` (step below tolerance), ``"max_steps"``, ``"no_ascent"`` (no step
+        increased the objective; ``theta`` is the best point found) or
+        ``"not_positive_definite"`` (the information matrix is not positive definite at
+        the starting point, so Newton's method does not apply and nothing was changed).
+    last_step
+        Size of the last Newton step in units of the naive standard errors
+        ``sqrt(diag(I^-1))``.
+    fixed
+        Names of parameters held fixed (on a bound, or not estimated).
+    """
+
+    theta: np.ndarray
+    loglik: float
+    loglik_unnorm: float
+    n_steps: int
+    status: str
+    last_step: float
+    fixed: tuple[str, ...] = ()
+
+
+def newton_polish(
+    lik: CompositeLikelihood,
+    theta: np.ndarray,
+    config: EMConfig | None = None,
+    *,
+    tol: float = 1e-5,
+    max_steps: int = 25,
+) -> PolishResult:
+    r"""Finish the maximisation with Newton's method on the truncated composite likelihood.
+
+    The EM algorithm converges linearly and — with the stopping rule of the original
+    software — halts a noticeable fraction of a standard error short of the maximum (on
+    the GIANT height example :math:`\pi_c` is still 5% below its final value when the
+    three-component fit stops). Newton's method uses the exact scores and observed
+    information that are needed anyway for the standard errors and converges
+    quadratically, so a handful of steps (each one pass over the data) delivers the
+    actual maximiser:
+
+    .. math:: \theta \leftarrow \theta + I(\theta)^{-1} \sum_k S_k(\theta).
+
+    Safeguards: a step is halved until it is feasible and does not decrease the
+    objective; parameters sitting on a bound of the three-component model (and ``a``
+    when ``stratification=False``) are held fixed; if the information matrix is not
+    positive definite at the start, the EM result is returned unchanged.
+
+    Parameters
+    ----------
+    lik
+        Likelihood object, at the truncation level to polish under.
+    theta
+        Starting point, normally the EM estimate.
+    config
+        EM configuration (supplies the proportion bounds of the three-component model).
+    tol
+        Convergence tolerance on the Newton step, in units of naive standard errors.
+    max_steps
+        Maximum number of Newton steps.
+    """
+    cfg = config or EMConfig()
+    spec = lik.spec
+    theta = spec.validate(theta).copy()
+    free = spec.free.copy()
+    # Box constraints. ``closed`` bounds can be attained (the parameter is then held
+    # there); the others are open and only approached.
+    lower = np.full(spec.n_params, -np.inf)
+    upper = np.full(spec.n_params, np.inf)
+    closed_lo = np.zeros(spec.n_params, dtype=bool)
+    closed_hi = np.zeros(spec.n_params, dtype=bool)
+    lower[0], upper[0] = 0.0, 1.0
+    if spec.H == 2:
+        lower[0], upper[0] = cfg.pic_bounds
+        lower[1], upper[1] = cfg.p1_bounds
+        closed_lo[:2] = closed_hi[:2] = True
+    for i in spec.idx_sig:
+        lower[i] = 0.0
+        closed_lo[i] = True
+    lower[spec.idx_a] = -lik.engine.min_varbetahat
+
+    def on_bound(th: np.ndarray) -> np.ndarray:
+        lo = closed_lo & np.isclose(th, lower, rtol=1e-9, atol=0.0)
+        hi = closed_hi & np.isclose(th, upper, rtol=1e-9, atol=0.0)
+        zero_var = np.zeros(spec.n_params, dtype=bool)
+        for i in spec.idx_sig:  # a variance component that collapsed to (numerically) zero
+            zero_var[i] = th[i] <= 1e-11
+        return lo | hi | zero_var
+
+    free &= ~on_bound(theta)
+    ll, llu = lik.loglik(theta)
+    status = "max_steps"
+    last = float("nan")
+    n_steps = 0
+    for _ in range(max_steps):
+        idx = np.flatnonzero(free)
+        if idx.size == 0:
+            status, last = "converged", 0.0
+            break
+        si = lik.score_info(theta)
+        info = si.information[np.ix_(idx, idx)]
+        grad = si.scores.sum(axis=0)[idx]
+        d = np.abs(np.diag(info))
+        if not (np.all(np.isfinite(info)) and np.all(d > 0)):
+            status = "not_positive_definite"
+            break
+        scale = 1.0 / np.sqrt(d)
+        scaled = info * scale[:, None] * scale[None, :]
+        evals = np.linalg.eigvalsh(0.5 * (scaled + scaled.T))
+        if evals.min() <= 1e-10 * max(1.0, evals.max()):
+            status = "not_positive_definite"
+            break
+        inv = np.linalg.inv(scaled) * scale[:, None] * scale[None, :]
+        step = inv @ grad
+        naive_se = np.sqrt(np.diag(inv))
+        size = float(np.max(np.abs(step) / naive_se))
+        if size < tol:
+            status, last = "converged", size
+            break
+
+        # Largest step that stays inside the box; remember which bound it would hit.
+        t_max, hit = 1.0, -1
+        for pos, j in enumerate(idx):
+            if step[pos] > 0 and np.isfinite(upper[j]):
+                room = (upper[j] - theta[j]) / step[pos]
+                closed = closed_hi[j]
+            elif step[pos] < 0 and np.isfinite(lower[j]):
+                room = (lower[j] - theta[j]) / step[pos]
+                closed = closed_lo[j]
+            else:
+                continue
+            if not closed:
+                room *= 0.5  # open bound: go at most half-way there
+            if room < t_max:
+                t_max, hit = float(room), (int(j) if closed else -1)
+
+        t = t_max
+        accepted = False
+        slack = 1e-10 * max(1.0, abs(llu))
+        while t > 1e-8:
+            cand = theta.copy()
+            cand[idx] += t * step
+            if hit >= 0 and t == t_max:
+                cand[hit] = upper[hit] if step[list(idx).index(hit)] > 0 else lower[hit]
+            try:
+                c_ll, c_llu = lik.loglik(cand)
+            except InputError:
+                c_ll = c_llu = -np.inf
+            if np.isfinite(c_llu) and c_llu >= llu - slack:
+                accepted = True
+                break
+            t *= 0.5
+        if not accepted:
+            status = "no_ascent"
+            break
+        theta, ll, llu = cand, c_ll, c_llu
+        n_steps += 1
+        last = size * t
+        free &= ~on_bound(theta)
+    fixed = tuple(n for n, f in zip(spec.param_names, free, strict=True) if not f)
+    return PolishResult(
+        theta=theta, loglik=ll, loglik_unnorm=llu, n_steps=n_steps, status=status, last_step=last, fixed=fixed
+    )
 
 # ---------------------------------------------------------------------------
 # Legacy policy: literal port of EM_func / EM_func3
