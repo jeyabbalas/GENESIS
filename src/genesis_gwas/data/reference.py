@@ -86,7 +86,7 @@ def _packaged_path(name: str) -> Path:
 
 @dataclass(frozen=True)
 class LDConfig:
-    """One LD configuration of a bundle.
+    r"""One LD configuration of a bundle.
 
     Attributes
     ----------
@@ -96,7 +96,7 @@ class LDConfig:
         Half-width of the window in kb: SNPs within this distance (inclusive) are
         candidates for tagging.
     r2_min
-        Tagging threshold: a reference SNP is tagged if :math:`r^2 \\ge` ``r2_min``.
+        Tagging threshold: a reference SNP is tagged if :math:`r^2 \ge` ``r2_min``.
     file
         Bundle-relative path of the ``.npz`` file.
     pairld
@@ -112,7 +112,7 @@ class LDConfig:
 
 @dataclass
 class LDReference:
-    """A reference panel with one selected LD configuration.
+    r"""A reference panel with one selected LD configuration.
 
     Do not construct directly; use :func:`load_reference` or
     :func:`genesis_gwas.ld.build_reference`.
@@ -134,7 +134,7 @@ class LDReference:
     hm3_no_mhc
         ``(M,)`` flag of the HapMap3-without-MHC list used by the QC filter, or ``None``.
     nstar, ldscore
-        ``(M,)`` :math:`N^*_k` and :math:`\\ell_k` under ``config``.
+        ``(M,)`` :math:`N^*_k` and :math:`\ell_k` under ``config``.
     """
 
     name: str
@@ -400,7 +400,7 @@ def load_reference(
     data_dir: str | os.PathLike[str] | None = None,
     download: bool = True,
 ) -> LDReference:
-    """Load an LD reference bundle.
+    r"""Load an LD reference bundle.
 
     Parameters
     ----------
@@ -414,7 +414,7 @@ def load_reference(
         * ``"mini_chr22"`` — a 2 MB chromosome-22 slice of the above, shipped inside the
           package for demonstrations and tests.
     window_kb, r2_min
-        LD configuration (default: 1000 kb and :math:`r^2\\ge0.1`, the paper's primary
+        LD configuration (default: 1000 kb and :math:`r^2\ge0.1`, the paper's primary
         choice). The bundled reference offers windows 500/1000/2000 kb and thresholds
         0.05/0.1/0.2.
     data_dir
@@ -476,7 +476,9 @@ def load_reference(
         nstar = z["nstar"].astype(np.int64)
         ldscore = z["ldscore"].astype(np.float64)
     if not (rsid.size == chrom.size == pos.size == nstar.size == ldscore.size):
-        raise ReferenceDataError(f"Reference {name!r} is corrupt: arrays have inconsistent lengths.")
+        raise ReferenceDataError(
+            f"Reference {name!r} is corrupt: arrays have inconsistent lengths."
+        )
     return LDReference(
         name=name,
         version=str(manifest.get("version", "0")),
@@ -566,7 +568,7 @@ def save_reference(
         snp_arrays["pos_grch38"] = np.asarray(pos_grch38, dtype=np.int32)
     if hm3_no_mhc is not None:
         snp_arrays["hm3_no_mhc"] = np.asarray(hm3_no_mhc, dtype=bool)
-    np.savez_compressed(root / "snps.npz", **snp_arrays)
+    np.savez_compressed(root / "snps.npz", **snp_arrays)  # type: ignore[arg-type]
     record("snps.npz")
 
     cfg_entries = []

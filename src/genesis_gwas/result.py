@@ -42,9 +42,11 @@ def _jsonable(x: Any) -> Any:
 def _arr(x: Any) -> np.ndarray | None:
     if x is None:
         return None
-    return np.array([[np.nan if v is None else v for v in row] for row in x], dtype=float) if (
-        len(x) and isinstance(x[0], list)
-    ) else np.array([np.nan if v is None else v for v in x], dtype=float)
+    return (
+        np.array([[np.nan if v is None else v for v in row] for row in x], dtype=float)
+        if (len(x) and isinstance(x[0], list))
+        else np.array([np.nan if v is None else v for v in x], dtype=float)
+    )
 
 
 def _num(x: Any) -> float:
@@ -145,7 +147,7 @@ class FitResult:
     @property
     def params(self) -> dict[str, float]:
         """``{parameter name: estimate}``."""
-        return {k: float(v) for k, v in zip(self.param_names, self.estimates)}
+        return {k: float(v) for k, v in zip(self.param_names, self.estimates, strict=True)}
 
     @property
     def pic(self) -> float:
@@ -267,7 +269,8 @@ class FitResult:
             bic=_num(d.get("bic")),
             bic_gamma=_num(d.get("bic_gamma", 0.5)),
             derived={
-                k: Derived(_num(v["estimate"]), _num(v["se"])) for k, v in (d.get("derived") or {}).items()
+                k: Derived(_num(v["estimate"]), _num(v["se"]))
+                for k, v in (d.get("derived") or {}).items()
             },
             starting=_arr(d.get("starting")),
             diagnostics=d.get("diagnostics") or {},
@@ -303,7 +306,7 @@ class FitResult:
                 f"d_s = {self.ds:.3f}"
             )
         lines += ["", f"  {'Parameter':<12}{'Estimate':>16}{'SE':>16}"]
-        for name, est, se in zip(self.param_names, self.estimates, self.se):
+        for name, est, se in zip(self.param_names, self.estimates, self.se, strict=True):
             lines.append(f"  {name:<12}{est:>16.6e}{se:>16.4e}")
         if self.derived:
             lines += ["", f"  {'Derived quantity':<56}{'Estimate':>14}{'SE':>12}"]
@@ -370,7 +373,11 @@ class ModelComparison:
             f"  {'Model':<8}{'logLik':>18}{'d_s':>10}{'AIC':>18}{'BIC':>18}{'delta':>12}",
         ]
         for row in self.table:
-            mark = "  <- selected" if row["selected"] else ("  (not identified)" if row.get("degenerate") else "")
+            mark = (
+                "  <- selected"
+                if row["selected"]
+                else ("  (not identified)" if row.get("degenerate") else "")
+            )
             lines.append(
                 f"  {row['model']:<8}{row['loglik']:>18,.3f}{row['ds']:>10.3f}{row['aic']:>18,.3f}"
                 f"{row['bic']:>18,.3f}{row['delta']:>12.3f}{mark}"
@@ -413,6 +420,6 @@ def select_model(fits: list[FitResult], criterion: str = "bic") -> ModelComparis
             "selected": i == best_i,
             "degenerate": bool(f.diagnostics.get("degenerate", False)),
         }
-        for i, (f, v) in enumerate(zip(fits, vals))
+        for i, (f, v) in enumerate(zip(fits, vals, strict=True))
     ]
     return ModelComparison(best=fits[best_i], criterion=criterion, table=table)

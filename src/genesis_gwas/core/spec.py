@@ -98,7 +98,11 @@ def log_multinomial_table(nstar_unique: np.ndarray, J: np.ndarray) -> np.ndarray
     rem = n - tot
     valid = rem >= 0
     out = np.full(valid.shape, -np.inf)
-    lg = gammaln(n + 1.0) - gammaln(np.where(valid, rem, 0.0) + 1.0) - gammaln(J + 1.0).sum(axis=1)[None, :]
+    lg = (
+        gammaln(n + 1.0)
+        - gammaln(np.where(valid, rem, 0.0) + 1.0)
+        - gammaln(J + 1.0).sum(axis=1)[None, :]
+    )
     out[valid] = lg[valid]
     return out
 
@@ -154,7 +158,7 @@ class ModelSpec:
 
     @cached_property
     def idx_pic(self) -> int:
-        """Index of :math:`\\pi_c`."""
+        r"""Index of :math:`\pi_c`."""
         return 0
 
     @cached_property
@@ -164,7 +168,7 @@ class ModelSpec:
 
     @cached_property
     def idx_sig(self) -> tuple[int, ...]:
-        """Indices of the variance components :math:`\\sigma_h^2`."""
+        r"""Indices of the variance components :math:`\sigma_h^2`."""
         start = self.H  # 1 (pic) + (H - 1) proportions
         return tuple(range(start, start + self.H))
 
@@ -187,11 +191,12 @@ class ModelSpec:
         th = np.asarray(theta, dtype=np.float64).ravel()
         if th.shape != (self.n_params,):
             raise InputError(
-                f"{self.name} expects {self.n_params} parameters {self.param_names}, "
-                f"got {th.size}."
+                f"{self.name} expects {self.n_params} parameters {self.param_names}, got {th.size}."
             )
         if not np.all(np.isfinite(th)):
-            raise InputError(f"Non-finite parameter values: {dict(zip(self.param_names, th))}")
+            raise InputError(
+                f"Non-finite parameter values: {dict(zip(self.param_names, th, strict=True))}"
+            )
         return th
 
     def unpack(self, theta: np.ndarray) -> tuple[float, np.ndarray, np.ndarray, float]:
@@ -243,4 +248,7 @@ class ModelSpec:
 
     def describe(self, theta: np.ndarray) -> dict[str, float]:
         """Map a parameter vector to ``{name: value}``."""
-        return {k: float(v) for k, v in zip(self.param_names, np.asarray(theta, dtype=float))}
+        return {
+            k: float(v)
+            for k, v in zip(self.param_names, np.asarray(theta, dtype=float), strict=True)
+        }

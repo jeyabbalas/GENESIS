@@ -48,7 +48,7 @@ def _logsumexp_rows(x: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True)
 class EMPass:
-    """Host-level results of one pass over the data (see :meth:`CompositeLikelihood.em_pass`).
+    r"""Host-level results of one pass over the data (see :meth:`CompositeLikelihood.em_pass`).
 
     Attributes
     ----------
@@ -58,10 +58,10 @@ class EMPass:
         Unnormalised truncated composite log-likelihood (the EM objective).
     counts
         ``(H,)`` expected number of tagged susceptibility SNPs of each type, summed over
-        markers: :math:`A_h = \\sum_k\\sum_t w_{kt} J_{th}`.
+        markers: :math:`A_h = \sum_k\sum_t w_{kt} J_{th}`.
     grad, hess
         Gradient ``(H+1,)`` and Hessian ``(H+1, H+1)`` of the expected complete-data
-        log-likelihood with respect to :math:`(\\sigma_1^2,\\dots,\\sigma_H^2, a)`.
+        log-likelihood with respect to :math:`(\sigma_1^2,\dots,\sigma_H^2, a)`.
     """
 
     loglik: float
@@ -73,21 +73,21 @@ class EMPass:
 
 @dataclass(frozen=True)
 class ScoreInfo:
-    """Per-SNP scores and the total observed information at a parameter value.
+    r"""Per-SNP scores and the total observed information at a parameter value.
 
     Attributes
     ----------
     scores
-        ``(K, P)`` matrix; row ``k`` is :math:`S_k = \\partial \\log \\tilde L_k/\\partial\\theta`.
+        ``(K, P)`` matrix; row ``k`` is :math:`S_k = \partial \log \tilde L_k/\partial\theta`.
     information
-        ``(P, P)`` symmetric matrix :math:`-\\sum_k \\partial^2\\log\\tilde L_k/
-        \\partial\\theta\\partial\\theta^\\top`.
+        ``(P, P)`` symmetric matrix :math:`-\sum_k \partial^2\log\tilde L_k/
+        \partial\theta\partial\theta^\top`.
     e_rr
-        ``(P, P)`` matrix :math:`\\sum_k\\sum_t w_{kt} r_{kt} r_{kt}^\\top` (kept so that the
+        ``(P, P)`` matrix :math:`\sum_k\sum_t w_{kt} r_{kt} r_{kt}^\top` (kept so that the
         asymmetric information matrix produced by a typo in the original three-component
         code can be reproduced exactly in ``legacy`` mode).
     loglik_per_snp
-        ``(K,)`` contributions :math:`\\log\\tilde L_k`.
+        ``(K,)`` contributions :math:`\log\tilde L_k`.
     """
 
     scores: np.ndarray
@@ -108,18 +108,18 @@ class Posterior:
 
 @dataclass(frozen=True)
 class TruncationDiagnostics:
-    """How much prior mass the truncation at ``c0`` discards.
+    r"""How much prior mass the truncation at ``c0`` discards.
 
     Attributes
     ----------
     c0
         Truncation level.
     log_mass_deficit
-        :math:`-\\sum_k\\log\\sum_t\\pi_{kt} \\ge 0`: the gap between the unnormalised and
+        :math:`-\sum_k\log\sum_t\pi_{kt} \ge 0`: the gap between the unnormalised and
         the renormalised composite log-likelihood.
     mean_tail, max_tail
         Mean and maximum over markers of the truncated prior mass
-        :math:`1-\\sum_t\\pi_{kt}`.
+        :math:`1-\sum_t\pi_{kt}`.
     frac_above_1e6
         Fraction of markers whose truncated prior mass exceeds :math:`10^{-6}`.
     """
@@ -201,7 +201,9 @@ class CompositeLikelihood:
         b, log_pi0 = self.spec.log_weights(theta, self.J)
         logprior = self._logC + b[None, :]
         log_y_u = _logsumexp_rows(logprior)
-        log_y_sum = float(np.dot(self.engine.nstar_counts, log_y_u)) + log_pi0 * self.engine.sum_nstar
+        log_y_sum = (
+            float(np.dot(self.engine.nstar_counts, log_y_u)) + log_pi0 * self.engine.sum_nstar
+        )
         return logprior, log_pi0, log_y_sum
 
     # -------------------------------------------------------------------- EM pass
@@ -270,7 +272,9 @@ class CompositeLikelihood:
             hess[:H, :H] = 0.5 * (self._Jf.T * sums["d2"][None, :]) @ self._Jf
             hess[:H, H] = hess[H, :H] = 0.5 * (self._Jf.T @ sums["d1"])
             hess[H, H] = 0.5 * float(np.sum(sums["d0"]))
-        return EMPass(loglik=loglik, loglik_unnorm=loglik_unnorm, counts=counts, grad=grad, hess=hess)
+        return EMPass(
+            loglik=loglik, loglik_unnorm=loglik_unnorm, counts=counts, grad=grad, hess=hess
+        )
 
     def loglik(self, theta: np.ndarray) -> tuple[float, float]:
         """Return ``(loglik, loglik_unnorm)`` at ``theta``."""
@@ -343,7 +347,9 @@ class CompositeLikelihood:
         e_rr = np.zeros((P, P))
         e_dr = np.zeros((P, P))
         ia = spec.idx_a
-        e_rr[0, 0] = np.sum(alpha**2 * nJ**2 * mw_1 - 2 * alpha * gamma * nJ * mw_n + gamma**2 * mw_nn)
+        e_rr[0, 0] = np.sum(
+            alpha**2 * nJ**2 * mw_1 - 2 * alpha * gamma * nJ * mw_n + gamma**2 * mw_nn
+        )
         e_dr[0, 0] = np.sum((gamma**2 - 1.0 / pic**2) * nJ * mw_1 - gamma**2 * mw_n)
         e_rr[0, ia] = np.sum(alpha * nJ * m1_1 - gamma * m1_n)
         for h, col in enumerate(spec.idx_sig):
@@ -372,7 +378,9 @@ class CompositeLikelihood:
         information = S.T @ S - e_rr - e_dr
         information = 0.5 * (information + information.T)
         loglik_per_snp = per["lse"] + log_pi0 * nstar - _HALF_LOG_2PI
-        return ScoreInfo(scores=S, information=information, e_rr=e_rr, loglik_per_snp=loglik_per_snp)
+        return ScoreInfo(
+            scores=S, information=information, e_rr=e_rr, loglik_per_snp=loglik_per_snp
+        )
 
     # -------------------------------------------------------------------- posterior
     def posterior(self, theta: np.ndarray, *, include_inflation: bool = True) -> Posterior:

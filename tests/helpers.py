@@ -37,7 +37,9 @@ def load_fixture(name: str) -> dict[str, Any]:
     pytest.skip(f"upstream fixture {name} not present")
 
 
-def simulate(K: int, seed: int, *, pic=0.01, sig=(5e-5,), p=(1.0,), a=1e-6, M=20000, edge=True) -> ModelData:
+def simulate(
+    K: int, seed: int, *, pic=0.01, sig=(5e-5,), p=(1.0,), a=1e-6, M=20000, edge=True
+) -> ModelData:
     """Simulate from the fitted-model form (independent markers)."""
     rng = np.random.default_rng(seed)
     nstar = np.clip(rng.gamma(1.6, 29.0, K).astype(np.int64), 1, 700)

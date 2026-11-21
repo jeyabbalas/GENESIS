@@ -119,7 +119,7 @@ class ModelData:
 
     @property
     def z(self) -> np.ndarray:
-        """Z statistics :math:`\\hat\\beta_k / s_k`."""
+        r"""Z statistics :math:`\hat\beta_k / s_k`."""
         return self.betahat / np.sqrt(self.varbetahat)
 
     @classmethod

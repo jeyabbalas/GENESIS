@@ -74,14 +74,16 @@ def _rng(seed: int | None, stream: int) -> np.random.Generator:
 
 
 def _thin_index(size: int, max_points: int) -> np.ndarray:
-    """Indices into an ascending array that keep the upper tail and thin the bulk evenly."""
+    """Return indices into an ascending array: the upper tail in full, the bulk thinned."""
     if max_points < 2:
         raise InputError("max_points must be >= 2")
     if size <= max_points:
         return np.arange(size, dtype=np.int64)
     n_tail = max_points // 2
     tail = np.arange(size - n_tail, size, dtype=np.int64)
-    bulk = np.unique(np.round(np.linspace(0, size - n_tail - 1, max_points - n_tail)).astype(np.int64))
+    bulk = np.unique(
+        np.round(np.linspace(0, size - n_tail - 1, max_points - n_tail)).astype(np.int64)
+    )
     return np.concatenate([bulk, tail])
 
 
@@ -147,7 +149,7 @@ class _ConfigSampler:
 
 
 def _positive_inflation(a: float) -> float:
-    """A negative fitted ``a`` cannot be simulated as a variance; the original uses 0."""
+    """Return ``a`` if positive, else 0 (a negative variance cannot be simulated)."""
     return a if a > 0 else 0.0
 
 
@@ -163,7 +165,9 @@ def _draw_joint_effects(model: EffectModel, size: int, rng: np.random.Generator)
     return beta
 
 
-def _ld_marginal(reference: LDReference, beta_joint: np.ndarray, block: int = 1 << 16) -> np.ndarray:
+def _ld_marginal(
+    reference: LDReference, beta_joint: np.ndarray, block: int = 1 << 16
+) -> np.ndarray:
     r"""Marginal effects :math:`\beta_k=\sum_{m\in\mathcal N_k}\beta^{(J)}_m\,|r_{km}|`.
 
     ``|r|`` is the square root of the stored pairwise :math:`r^2` — the sign of the
@@ -216,6 +220,26 @@ def _null_source(
         )
         return available, True
     return want, True
+
+
+def _select_rows(rows: Any, size: int) -> np.ndarray:
+    """Validate a row selection (``None``, boolean mask or integer index) of the reference."""
+    if rows is None:
+        return np.arange(size, dtype=np.int64)
+    raw = np.asarray(rows)
+    if raw.dtype == bool:
+        if raw.size != size:
+            raise InputError("A boolean `rows` mask must have one entry per reference SNP")
+        raw = np.flatnonzero(raw)
+    sel: np.ndarray = raw.astype(np.int64).ravel()
+    if (
+        sel.size == 0
+        or int(np.min(sel)) < 0
+        or int(np.max(sel)) >= size
+        or np.unique(sel).size != sel.size
+    ):
+        raise InputError("rows must be unique reference row indices")
+    return sel
 
 
 # ------------------------------------------------------------------ model-based draws
@@ -370,17 +394,7 @@ def simulate_ld_sumstats(
         raise InputError("n must be a scalar or have one value per reference SNP")
     if np.any(nv <= 0) or not np.all(np.isfinite(nv)):
         raise InputError("Sample sizes must be finite and > 0")
-    if rows is None:
-        sel = np.arange(size, dtype=np.int64)
-    else:
-        sel = np.asarray(rows)
-        if sel.dtype == bool:
-            if sel.size != size:
-                raise InputError("A boolean `rows` mask must have one entry per reference SNP")
-            sel = np.flatnonzero(sel)
-        sel = sel.astype(np.int64).ravel()
-        if sel.size == 0 or sel.min() < 0 or sel.max() >= size or np.unique(sel).size != sel.size:
-            raise InputError("rows must be unique reference row indices")
+    sel = _select_rows(rows, size)
     rng = _rng(seed, 0)
     beta_joint = _draw_joint_effects(model, size, rng)
     marginal = _ld_marginal(reference, beta_joint)
@@ -484,7 +498,7 @@ class QQData:
         )
 
     def to_frame(self) -> pd.DataFrame:
-        """The four aligned curves as a DataFrame (as ``QQdata`` of the original)."""
+        """Return the four aligned curves as a DataFrame (``QQdata`` of the original)."""
         return pd.DataFrame(
             {
                 "observed": self.observed,
@@ -506,7 +520,7 @@ def qq_simulation(
     c0: int | None = None,
     max_points: int | None = None,
 ) -> QQData:
-    r"""Expected P-value distribution under the fitted model, by simulation.
+    r"""Simulate the P-value distribution expected under the fitted model.
 
     Port of ``qqplotdata.simu()``. In each of ``n_sim`` replicates every marker gets
 

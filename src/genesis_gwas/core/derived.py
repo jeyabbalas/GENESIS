@@ -71,7 +71,9 @@ def derived_quantities(
     """
     th = np.asarray(theta, dtype=np.float64)
     P = spec.n_params
-    cov = np.full((P, P), np.nan) if covariance is None else np.asarray(covariance, dtype=np.float64)
+    cov = (
+        np.full((P, P), np.nan) if covariance is None else np.asarray(covariance, dtype=np.float64)
+    )
 
     def se(grad: np.ndarray) -> float:
         return delta_method(grad, cov) if covariance is not None else float("nan")
@@ -91,7 +93,15 @@ def derived_quantities(
     else:
         p1, s1, s2 = th[1], th[2], th[3]
         h2 = M * pic * (p1 * s1 + (1.0 - p1) * s2)
-        g = np.array([M * (p1 * s1 + (1.0 - p1) * s2), M * pic * (s1 - s2), M * pic * p1, M * pic * (1.0 - p1), 0.0])
+        g = np.array(
+            [
+                M * (p1 * s1 + (1.0 - p1) * s2),
+                M * pic * (s1 - s2),
+                M * pic * p1,
+                M * pic * (1.0 - p1),
+                0.0,
+            ]
+        )
         se_h2 = se(g)
     out["heritability"] = Derived(float(h2), se_h2)
 
@@ -104,12 +114,15 @@ def derived_quantities(
 
     if spec.H == 2:
         p1, s1, s2 = th[1], th[2], th[3]
-        out["n_ssnp_cluster1"] = Derived(float(M * pic * p1), se(np.array([M * p1, M * pic, 0.0, 0.0, 0.0])))
+        out["n_ssnp_cluster1"] = Derived(
+            float(M * pic * p1), se(np.array([M * p1, M * pic, 0.0, 0.0, 0.0]))
+        )
         out["n_ssnp_cluster2"] = Derived(
             float(M * pic * (1.0 - p1)), se(np.array([M * (1.0 - p1), -M * pic, 0.0, 0.0, 0.0]))
         )
         out["heritability_cluster1"] = Derived(
-            float(M * pic * p1 * s1), se(np.array([M * p1 * s1, M * pic * s1, M * pic * p1, 0.0, 0.0]))
+            float(M * pic * p1 * s1),
+            se(np.array([M * p1 * s1, M * pic * s1, M * pic * p1, 0.0, 0.0])),
         )
         out["heritability_cluster2"] = Derived(
             float(M * pic * (1.0 - p1) * s2),

@@ -69,7 +69,9 @@ def weight_loglikelihood(par, betahat, varbetahat, ldscore, c0, Nstar):
         nk = int(Nstar[k])
         for j in range(min(nk + 1, c0 + 1)):
             tem = cdbinom(j, nk, pi1)
-            tem1 = tem * cdnorm(betahat[k], 0.0, math.sqrt(j * sigsq * ldscore[k] / nk + varbetahat[k] + a))
+            tem1 = tem * cdnorm(
+                betahat[k], 0.0, math.sqrt(j * sigsq * ldscore[k] / nk + varbetahat[k] + a)
+            )
             w[k, j] = tem1
             y += tem
             marginal += tem1
@@ -104,7 +106,15 @@ def onestep_varcomponent(varcomponent, w, betahat, varbetahat, ldscore, Nstar):
             tem = (j * sigsq) * ldscore[k] / float(nk) + varbetahat[k] + a
             s1 += w[k, j] * j * ldscore[k] / (2.0 * nk) * (b2 / tem**2 - 1.0 / tem)
             s2 += w[k, j] / 2.0 * (b2 / tem**2 - 1.0 / tem)
-            dd1 += w[k, j] * j * ldscore[k] * j * ldscore[k] / (2.0 * nk * nk) * (-2.0 * b2 / tem**3 + 1.0 / tem**2)
+            dd1 += (
+                w[k, j]
+                * j
+                * ldscore[k]
+                * j
+                * ldscore[k]
+                / (2.0 * nk * nk)
+                * (-2.0 * b2 / tem**3 + 1.0 / tem**2)
+            )
             dd2 += w[k, j] / 2.0 * (-2.0 * b2 / tem**3 + 1.0 / tem**2)
             dd12 += w[k, j] * j * ldscore[k] / (2.0 * nk) * (-2.0 * b2 / tem**3 + 1.0 / tem**2)
     det = dd1 * dd2 - dd12**2
@@ -150,7 +160,10 @@ def Ik(par, betahatk, varbetahatk, ldscorek, c0, Nstark):
 
 def SS(par, betahat, varbetahat, ldscore, c0, Nstar):
     return np.array(
-        [Sk(par, betahat[k], varbetahat[k], ldscore[k], c0, int(Nstar[k])) for k in range(len(betahat))]
+        [
+            Sk(par, betahat[k], varbetahat[k], ldscore[k], c0, int(Nstar[k]))
+            for k in range(len(betahat))
+        ]
     )
 
 
@@ -161,8 +174,22 @@ def I(par, betahat, varbetahat, ldscore, c0, Nstar):  # noqa: E743
     return out
 
 
-def EM_func(par_start, betahat, varbetahat, ldscore, Nstar, M, c0, eps1, eps2, eps3, eps, Meps, steps,
-            stratification=True):
+def EM_func(
+    par_start,
+    betahat,
+    varbetahat,
+    ldscore,
+    Nstar,
+    M,
+    c0,
+    eps1,
+    eps2,
+    eps3,
+    eps,
+    Meps,
+    steps,
+    stratification=True,
+):
     """Returns upstream's 10-vector ``result`` (timings set to 0)."""
     par = np.array(par_start, dtype=float)
     llk = 0.0
@@ -235,7 +262,9 @@ def weight_loglikelihood3(par, betahat, varbetahat, ldscore, c0, Nstar):
                     break
                 tem = cdmultinom3(j1, j2, nk - j1 - j2, prob)
                 tem1 = tem * cdnorm(
-                    betahat[k], 0.0, math.sqrt((j1 * sig1 + j2 * sig2) * ldscore[k] / nk + varbetahat[k] + a)
+                    betahat[k],
+                    0.0,
+                    math.sqrt((j1 * sig1 + j2 * sig2) * ldscore[k] / nk + varbetahat[k] + a),
                 )
                 w[k, j1 * (c0 + 1) + j2] = tem1
                 loginside += tem1
@@ -297,13 +326,19 @@ def onestep_varcomponent3(varcomponent, w, betahat, varbetahat, ldscore, Nstar):
         + dd13 * (dd23 * dd12 - dd22 * dd13)
     )
     r0 = sig1 - (1.0 / det) * (
-        (dd33 * dd22 - dd23 * dd23) * s1 - (dd33 * dd12 - dd23 * dd13) * s2 + (dd23 * dd12 - dd22 * dd13) * s3
+        (dd33 * dd22 - dd23 * dd23) * s1
+        - (dd33 * dd12 - dd23 * dd13) * s2
+        + (dd23 * dd12 - dd22 * dd13) * s3
     )
     r1 = sig2 - (1.0 / det) * (
-        -(dd33 * dd12 - dd13 * dd23) * s1 + (dd33 * dd11 - dd13 * dd13) * s2 - (dd23 * dd11 - dd12 * dd13) * s3
+        -(dd33 * dd12 - dd13 * dd23) * s1
+        + (dd33 * dd11 - dd13 * dd13) * s2
+        - (dd23 * dd11 - dd12 * dd13) * s3
     )
     r2 = a - (1.0 / det) * (
-        (dd23 * dd12 - dd13 * dd22) * s1 - (dd23 * dd11 - dd13 * dd12) * s2 + (dd22 * dd11 - dd12 * dd12) * s3
+        (dd23 * dd12 - dd13 * dd22) * s1
+        - (dd23 * dd11 - dd13 * dd12) * s2
+        + (dd22 * dd11 - dd12 * dd12) * s3
     )
     return np.array([r0, r1, r2])
 
@@ -349,7 +384,13 @@ def Ik3(par, betahatk, varbetahatk, ldscorek, c0, Nstark, *, reproduce_typo=True
             x1 = j1 * ldscorek / nk
             x2 = j2 * ldscorek / nk
             r = np.array(
-                [(j1 + j2) / pic - (nk - j1 - j2) / (1 - pic), j1 / p1 - j2 / (1 - p1), common * x1, common * x2, common]
+                [
+                    (j1 + j2) / pic - (nk - j1 - j2) / (1 - pic),
+                    j1 / p1 - j2 / (1 - p1),
+                    common * x1,
+                    common * x2,
+                    common,
+                ]
             )
             Lk += g
             d2 = 0.5 / tem_var**2 - betahatk**2 / tem_var**3
@@ -372,19 +413,48 @@ def Ik3(par, betahatk, varbetahatk, ldscorek, c0, Nstark, *, reproduce_typo=True
 
 def SS3(par, betahat, varbetahat, ldscore, c0, Nstar):
     return np.array(
-        [Sk3(par, betahat[k], varbetahat[k], ldscore[k], c0, int(Nstar[k])) for k in range(len(betahat))]
+        [
+            Sk3(par, betahat[k], varbetahat[k], ldscore[k], c0, int(Nstar[k]))
+            for k in range(len(betahat))
+        ]
     )
 
 
 def I3(par, betahat, varbetahat, ldscore, c0, Nstar, *, reproduce_typo=True):
     out = np.zeros((5, 5))
     for k in range(len(betahat)):
-        out += Ik3(par, betahat[k], varbetahat[k], ldscore[k], c0, int(Nstar[k]), reproduce_typo=reproduce_typo)
+        out += Ik3(
+            par,
+            betahat[k],
+            varbetahat[k],
+            ldscore[k],
+            c0,
+            int(Nstar[k]),
+            reproduce_typo=reproduce_typo,
+        )
     return out
 
 
-def EM_func3(par_start, lower_pi, upper_pi, betahat, varbetahat, ldscore, Nstar, M, c0,
-             eps1, eps2, eps3, eps4, eps5, eps, Meps, steps, stratification=True):
+def EM_func3(
+    par_start,
+    lower_pi,
+    upper_pi,
+    betahat,
+    varbetahat,
+    ldscore,
+    Nstar,
+    M,
+    c0,
+    eps1,
+    eps2,
+    eps3,
+    eps4,
+    eps5,
+    eps,
+    Meps,
+    steps,
+    stratification=True,
+):
     """Returns upstream's 12-vector ``result`` (timings set to 0)."""
     par = np.array(par_start, dtype=float)
     llk = 0.0
@@ -442,8 +512,14 @@ def EM_func3(par_start, lower_pi, upper_pi, betahat, varbetahat, ldscore, Nstar,
         result[8] = c0
         error = np.abs(prev_par - par)
         increase_ll = (llk - prev_llk) / prev_llk if prev_llk != 0 else math.inf
-        if (error[0] < eps1 and error[1] < eps2 and error[2] < eps3 and error[3] < eps4
-                and error[4] < eps5 and abs(increase_ll) < eps):
+        if (
+            error[0] < eps1
+            and error[1] < eps2
+            and error[2] < eps3
+            and error[3] < eps4
+            and error[4] < eps5
+            and abs(increase_ll) < eps
+        ):
             break
     result[1] = loglikelihood3(par, betahat, varbetahat, ldscore, c0, Nstar)
     return result

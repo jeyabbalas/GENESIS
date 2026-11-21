@@ -6,8 +6,8 @@ import math
 
 import numpy as np
 import pytest
-
 import tests.upstream_port as up
+
 from genesis_gwas.core.variance import (
     Neighborhoods,
     delta_method,
@@ -19,7 +19,9 @@ from genesis_gwas.core.variance import (
 from genesis_gwas.exceptions import InputError, NumericalWarning
 
 
-def _random_symmetric_neighbors(n: int, rng: np.random.Generator, width: int = 6) -> list[list[int]]:
+def _random_symmetric_neighbors(
+    n: int, rng: np.random.Generator, width: int = 6
+) -> list[list[int]]:
     """Self plus random nearby partners; symmetric like real tagging neighbourhoods."""
     sets = [{i} for i in range(n)]
     for i in range(n):
@@ -49,7 +51,9 @@ def test_neighborhood_sums_match_brute_force():
         [sum((Sg[pos[m]] for m in lists[int(r)] if m in pos), np.zeros(P)) for r in ref_index]
     )
     np.testing.assert_allclose(neighborhood_sums(Sg, nb, ref_index), brute, rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(neighborhood_sums(Sg, nb, ref_index, block=11), brute, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        neighborhood_sums(Sg, nb, ref_index, block=11), brute, rtol=1e-12, atol=1e-12
+    )
 
 
 def test_neighborhood_sums_handles_empty_rows_and_validates():

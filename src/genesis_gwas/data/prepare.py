@@ -17,9 +17,10 @@ are always removed (the original crashes or silently misbehaves on those).
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,9 @@ from genesis_gwas.core.data import ModelData
 from genesis_gwas.data.reference import LDReference, load_reference
 from genesis_gwas.data.sumstats import SumStats, read_sumstats
 from genesis_gwas.exceptions import DataError, DataWarning, InputError
+
+if TYPE_CHECKING:
+    from genesis_gwas.core.variance import Neighborhoods
 
 __all__ = ["QCConfig", "prepare"]
 
@@ -90,7 +94,11 @@ def _match(
     if match_on in ("auto", "rsid"):
         by_id = ref.lookup(table["SNP"].to_numpy(dtype=str))
         info["matched_by_id"] = int((by_id >= 0).sum())
-        if match_on == "rsid" or not has_pos or info["matched_by_id"] >= 0.5 * min(len(table), ref.M):
+        if (
+            match_on == "rsid"
+            or not has_pos
+            or info["matched_by_id"] >= 0.5 * min(len(table), ref.M)
+        ):
             info["match_on"] = "rsid"
             return by_id, info
     if not has_pos:
@@ -123,7 +131,7 @@ def _match(
 
 
 def prepare(
-    sumstats: SumStats | pd.DataFrame | str,
+    sumstats: SumStats | pd.DataFrame | str | os.PathLike[str],
     reference: LDReference | str | None = None,
     *,
     qc: QCConfig | bool | None = None,
@@ -166,12 +174,16 @@ def prepare(
         raise InputError("match_on must be 'auto', 'rsid' or 'position'")
     if isinstance(sumstats, SumStats):
         if read_kwargs:
-            raise InputError(f"Unexpected arguments for an in-memory SumStats: {sorted(read_kwargs)}")
+            raise InputError(
+                f"Unexpected arguments for an in-memory SumStats: {sorted(read_kwargs)}"
+            )
         ss = sumstats
     else:
         ss = read_sumstats(sumstats, **read_kwargs)
-    ref = reference if isinstance(reference, LDReference) else load_reference(
-        reference if reference is not None else "eur_1kg_hm3"
+    ref = (
+        reference
+        if isinstance(reference, LDReference)
+        else load_reference(reference if reference is not None else "eur_1kg_hm3")
     )
     if qc is None or qc is True:
         cfg = QCConfig()
@@ -189,18 +201,25 @@ def prepare(
         removed = int((~keep).sum())
         steps.append({"step": label, "removed": removed, "remaining": int(keep.sum())})
         if removed:
-            log.info("QC: %-58s removed %10s, %10s remain", label, f"{removed:,}", f"{int(keep.sum()):,}")
+            log.info(
+                "QC: %-58s removed %10s, %10s remain", label, f"{removed:,}", f"{int(keep.sum()):,}"
+            )
             table = table.loc[keep]
 
     zv = table["Z"].to_numpy(dtype=np.float64)
     nv = table["N"].to_numpy(dtype=np.float64)
     apply(np.isfinite(zv) & np.isfinite(nv) & (nv > 0), "missing / non-finite Z or N, or N <= 0")
-    apply(~table["SNP"].duplicated(keep="first").to_numpy(), "duplicated SNP identifier (first kept)")
+    apply(
+        ~table["SNP"].duplicated(keep="first").to_numpy(), "duplicated SNP identifier (first kept)"
+    )
 
     if cfg.n_min_fraction is not None and len(table):
         nv = table["N"].to_numpy(dtype=np.float64)
         threshold = cfg.n_min_fraction * float(np.quantile(nv, cfg.n_quantile))
-        apply(nv >= threshold, f"N < {cfg.n_min_fraction:g} x {cfg.n_quantile:g}-quantile of N ({threshold:,.0f})")
+        apply(
+            nv >= threshold,
+            f"N < {cfg.n_min_fraction:g} x {cfg.n_quantile:g}-quantile of N ({threshold:,.0f})",
+        )
     if cfg.min_info is not None and "INFO" in table.columns:
         apply(table["INFO"].to_numpy(dtype=np.float64) >= cfg.min_info, f"INFO < {cfg.min_info:g}")
     if cfg.min_maf is not None and "EAF" in table.columns:
@@ -224,7 +243,9 @@ def prepare(
     elif cfg.exclude_mhc:
         if ref.genome_build.lower() in ("grch37", "hg19"):
             keep = ~(
-                (ref.chrom[rows] == _MHC[0]) & (ref.pos[rows] >= _MHC[1]) & (ref.pos[rows] <= _MHC[2])
+                (ref.chrom[rows] == _MHC[0])
+                & (ref.pos[rows] >= _MHC[1])
+                & (ref.pos[rows] <= _MHC[2])
             )
             apply(keep, "MHC region (chr6:26-34 Mb)")
             rows = rows[keep]
@@ -288,7 +309,7 @@ def prepare(
         M=int(M) if M is not None else ref.M,
         snp=ref.subset_ids(rows),
         ref_index=rows,
-        neighborhoods=_LazyNeighborhoods(ref),  # type: ignore[arg-type]
+        neighborhoods=cast("Neighborhoods", _LazyNeighborhoods(ref)),
         meta=meta,
     )
 
@@ -301,4 +322,3 @@ class _LazyNeighborhoods:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._ref.neighborhoods, name)
-

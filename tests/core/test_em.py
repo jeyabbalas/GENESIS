@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 import tests.upstream_port as up
+
 from genesis_gwas.core.em import EMConfig, newton_direction, newton_polish, run_em
 from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
@@ -24,23 +24,47 @@ def _legacy(data, plan, spec, start, **kw):
 
 
 def _port2(d, start, n_iter, c0=10, strat=True):
-    return up.EM_func(start, d.betahat, d.varbetahat, d.ldscore, d.nstar, d.M, c0, Meps=n_iter, steps=2,
-                      stratification=strat, **TOL2)
+    return up.EM_func(
+        start,
+        d.betahat,
+        d.varbetahat,
+        d.ldscore,
+        d.nstar,
+        d.M,
+        c0,
+        Meps=n_iter,
+        steps=2,
+        stratification=strat,
+        **TOL2,
+    )
 
 
 def _port3(d, start, n_iter, c0=10, strat=True):
-    return up.EM_func3(start, LO, HI, d.betahat, d.varbetahat, d.ldscore, d.nstar, d.M, c0, Meps=n_iter,
-                       steps=2, stratification=strat, **TOL3)
+    return up.EM_func3(
+        start,
+        LO,
+        HI,
+        d.betahat,
+        d.varbetahat,
+        d.ldscore,
+        d.nstar,
+        d.M,
+        c0,
+        Meps=n_iter,
+        steps=2,
+        stratification=strat,
+        **TOL3,
+    )
 
 
 # ------------------------------------------------------------------ legacy parity
 @pytest.mark.parametrize(
     "start,c0,strat",
     [
-        (np.array([0.01, 6e-5, 8e-7]), 10, True),      # regular
-        (np.array([0.05, 2e-5, 8e-7]), 3, True),       # truncation bites: c0 gets raised
-        (np.array([0.01, 6e-5, 8e-7]), 10, False),     # a forced to 0 (joint-Newton quirk)
-        (np.array([0.4, 0.5, 1e-6]), 10, True),        # absurd start: clamp/reset path
+        (np.array([0.01, 6e-5, 8e-7]), 10, True),  # regular
+        (np.array([0.05, 2e-5, 8e-7]), 3, True),  # truncation bites: c0 gets raised
+        (np.array([0.01, 6e-5, 8e-7]), 10, False),  # a forced to 0 (joint-Newton quirk)
+        (np.array([0.4, 0.5, 1e-6]), 10, True),  # absurd start: clamp/reset path
     ],
     ids=["regular", "c0=3", "nostrat", "bad-start"],
 )
@@ -49,7 +73,9 @@ def test_legacy_m2_follows_port_iteration_by_iteration(small_data, plan1, start,
     for n_iter in (1, 2, 3, 5, 8, 13, 25):
         ref = _port2(small_data, start, n_iter, c0, strat)
         res = _legacy(small_data, plan1, spec, start, c0=c0, max_iter=n_iter)
-        np.testing.assert_allclose(res.theta, ref[2:5], rtol=1e-7, atol=1e-18, err_msg=f"iter {n_iter}")
+        np.testing.assert_allclose(
+            res.theta, ref[2:5], rtol=1e-7, atol=1e-18, err_msg=f"iter {n_iter}"
+        )
         assert res.c0 == int(ref[6])
         assert res.loglik == pytest.approx(ref[1], rel=1e-9)
 
@@ -60,7 +86,7 @@ def test_legacy_m2_follows_port_iteration_by_iteration(small_data, plan1, start,
         (np.array([0.01, 1 / 9, 3e-4, 3e-5, 8e-7]), 10, True),
         (np.array([0.04, 0.2, 1e-4, 2e-5, 8e-7]), 3, True),
         (np.array([0.01, 1 / 9, 3e-4, 3e-5, 8e-7]), 10, False),
-        (np.array([0.01, 0.49, 3e-4, 3e-5, 8e-7]), 10, True),   # p1 near its upper bound
+        (np.array([0.01, 0.49, 3e-4, 3e-5, 8e-7]), 10, True),  # p1 near its upper bound
     ],
     ids=["regular", "c0=3", "nostrat", "p1-bound"],
 )
@@ -69,7 +95,9 @@ def test_legacy_m3_follows_port_iteration_by_iteration(small_data, plan1, start,
     for n_iter in (1, 2, 3, 6, 12):
         ref = _port3(small_data, start, n_iter, c0, strat)
         res = _legacy(small_data, plan1, spec, start, c0=c0, max_iter=n_iter)
-        np.testing.assert_allclose(res.theta, ref[2:7], rtol=1e-6, atol=1e-18, err_msg=f"iter {n_iter}")
+        np.testing.assert_allclose(
+            res.theta, ref[2:7], rtol=1e-6, atol=1e-18, err_msg=f"iter {n_iter}"
+        )
         assert res.c0 == int(ref[8])
         assert res.loglik == pytest.approx(ref[1], rel=1e-9)
 
@@ -129,13 +157,15 @@ def test_recovers_three_component_truth(m3_run):
     assert res.status == "converged"
     llu = np.array([h["loglik_unnorm"] for h in res.history])
     assert np.all(np.diff(llu) >= -1e-9 * np.abs(llu[:-1]))  # monotone ascent throughout
-    pic, p1, s1, s2, a = res.theta
+    pic, p1, s1, s2, _a = res.theta
     # truth: pic=0.02, p1=0.15, sigmasq=(4e-4, 4e-5), a=1e-6 (20k independent markers)
     assert pic == pytest.approx(0.02, rel=0.25)
     assert p1 == pytest.approx(0.15, rel=0.5)
     assert s1 == pytest.approx(4e-4, rel=0.4)
     assert s2 == pytest.approx(4e-5, rel=0.4)
-    assert pic * (p1 * s1 + (1 - p1) * s2) == pytest.approx(0.02 * (0.15 * 4e-4 + 0.85 * 4e-5), rel=0.15)
+    assert pic * (p1 * s1 + (1 - p1) * s2) == pytest.approx(
+        0.02 * (0.15 * 4e-4 + 0.85 * 4e-5), rel=0.15
+    )
 
 
 def test_safeguards_survive_a_start_that_breaks_the_original(small_data, plan1):
@@ -156,7 +186,11 @@ def test_no_stratification_fixes_a_and_reaches_the_constrained_optimum(medium_da
     spec = ModelSpec(2, stratification=False)
     with Engine(medium_data, resolve_plan("cpu", threads=2)) as eng:
         lik = CompositeLikelihood(spec, eng, 10)
-        res = run_em(lik, np.array([0.01, 1e-4, 3e-6]), EMConfig(tol_pic=1e-9, tol_sigmasq=1e-12, tol_loglik=1e-12))
+        res = run_em(
+            lik,
+            np.array([0.01, 1e-4, 3e-6]),
+            EMConfig(tol_pic=1e-9, tol_sigmasq=1e-12, tol_loglik=1e-12),
+        )
         si = lik.score_info(res.theta)
     assert res.theta[2] == 0.0
     total = si.scores.sum(axis=0)
@@ -175,7 +209,9 @@ def test_m3_proportions_respect_bounds(medium_data):
         res = run_em(lik, np.array([0.01, 0.04, 5e-4, 5e-5, 1e-6]), cfg)
     p1 = np.array([h["theta"][1] for h in res.history])
     assert np.all(p1 <= 0.05 + 1e-15) and np.all(p1 >= 1e-7)
-    assert p1[-1] == pytest.approx(0.05)  # truth (0.15) lies above the bound: stays pinned, no oscillation
+    assert p1[-1] == pytest.approx(
+        0.05
+    )  # truth (0.15) lies above the bound: stays pinned, no oscillation
     assert np.all(np.diff(p1[-10:]) == 0)
 
 
@@ -246,8 +282,13 @@ def test_newton_polish_finds_the_root_of_the_score_equations(medium_data):
         pol = newton_polish(lik, em.theta)
         si = lik.score_info(pol.theta)
         # a much longer EM run must approach the same point
-        tight = run_em(lik, em.theta, EMConfig(tol_pic=1e-10, tol_sigmasq=1e-13, tol_a=1e-14,
-                                               tol_loglik=1e-13, max_iter=4000))
+        tight = run_em(
+            lik,
+            em.theta,
+            EMConfig(
+                tol_pic=1e-10, tol_sigmasq=1e-13, tol_a=1e-14, tol_loglik=1e-13, max_iter=4000
+            ),
+        )
     assert pol.status == "converged" and pol.n_steps >= 1 and pol.fixed == ()
     assert pol.loglik_unnorm >= em.loglik_unnorm
     step = np.linalg.solve(si.information, si.scores.sum(axis=0))
@@ -271,7 +312,9 @@ def test_newton_polish_three_component(m3_run):
 def test_newton_polish_respects_bounds_and_fixed_parameters(medium_data):
     from genesis_gwas.compute import resolve_plan
 
-    cfg = EMConfig(p1_bounds=(1e-7, 0.05), max_iter=80)  # need not converge: Newton finishes the job
+    cfg = EMConfig(
+        p1_bounds=(1e-7, 0.05), max_iter=80
+    )  # need not converge: Newton finishes the job
     with Engine(medium_data, resolve_plan("cpu", threads=4)) as eng:
         lik = CompositeLikelihood(ModelSpec(3), eng, 10)
         em = run_em(lik, np.array([0.01, 0.04, 5e-4, 5e-5, 1e-6]), cfg)
@@ -279,7 +322,9 @@ def test_newton_polish_respects_bounds_and_fixed_parameters(medium_data):
         lik0 = CompositeLikelihood(ModelSpec(2, stratification=False), eng, 10)
         em0 = run_em(lik0, np.array([0.01, 1e-4, 0.0]), EMConfig())
         pol0 = newton_polish(lik0, em0.theta)
-    assert pol.theta[1] == pytest.approx(0.05) and "p1" in pol.fixed  # truth 0.15 is outside the box
+    assert (
+        pol.theta[1] == pytest.approx(0.05) and "p1" in pol.fixed
+    )  # truth 0.15 is outside the box
     assert pol.status == "converged" and pol.loglik_unnorm >= em.loglik_unnorm
     assert pol0.theta[2] == 0.0 and pol0.fixed == ("a",) and pol0.status == "converged"
 

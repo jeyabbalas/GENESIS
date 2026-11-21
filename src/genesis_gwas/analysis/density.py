@@ -92,7 +92,7 @@ class EffectModel:
 
     @property
     def sds(self) -> np.ndarray:
-        """``(H,)`` standard deviations :math:`\\sigma_h`."""
+        r"""``(H,)`` standard deviations :math:`\sigma_h`."""
         return np.sqrt(self.variances)
 
     @property
@@ -107,7 +107,7 @@ class EffectModel:
 
 
 def resolve_model(fit_or_theta: Any, M: int | None = None) -> EffectModel:
-    """Interpret a :class:`~genesis_gwas.result.FitResult` or a raw parameter vector.
+    r"""Interpret a :class:`~genesis_gwas.result.FitResult` or a raw parameter vector.
 
     Parameters
     ----------
@@ -127,7 +127,7 @@ def resolve_model(fit_or_theta: Any, M: int | None = None) -> EffectModel:
     ------
     InputError
         If the vector has the wrong length or contains values outside the parameter
-        space (:math:`0<\\pi_c\\le 1`, :math:`0\\le p_1\\le 1`, :math:`\\sigma_h^2>0`).
+        space (:math:`0<\pi_c\le 1`, :math:`0\le p_1\le 1`, :math:`\sigma_h^2>0`).
     """
     if isinstance(fit_or_theta, EffectModel):
         if M is None or int(M) == fit_or_theta.M:
@@ -194,7 +194,7 @@ def _check_M(M: Any) -> int:
 
 
 def effect_mixture(fit_or_theta: Any) -> tuple[np.ndarray, np.ndarray]:
-    r"""Mixture representation of the effect-size distribution of susceptibility SNPs.
+    r"""Return the effect-size distribution of susceptibility SNPs as a normal mixture.
 
     Returns
     -------
@@ -208,7 +208,7 @@ def effect_mixture(fit_or_theta: Any) -> tuple[np.ndarray, np.ndarray]:
 
 
 def effect_density(x: Any, fit_or_theta: Any) -> np.ndarray:
-    r"""Probability density of the joint effect size of a susceptibility SNP.
+    r"""Evaluate the probability density of the joint effect size of a susceptibility SNP.
 
     .. math::
 
@@ -239,7 +239,7 @@ def effect_density(x: Any, fit_or_theta: Any) -> np.ndarray:
 
 
 def effect_cdf(x: Any, fit_or_theta: Any) -> np.ndarray:
-    r"""Distribution function of the joint effect size of a susceptibility SNP.
+    r"""Evaluate the distribution function of the joint effect size of a susceptibility SNP.
 
     .. math::
 
@@ -267,7 +267,7 @@ def n_in_interval(
     fit_or_theta: Any,
     M: int | None = None,
 ) -> np.ndarray:
-    r"""Expected number of SNPs whose absolute effect size lies in ``(lower, upper)``.
+    r"""Compute the expected number of SNPs with absolute effect size in ``(lower, upper)``.
 
     .. math::
 

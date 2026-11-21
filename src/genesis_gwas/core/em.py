@@ -544,7 +544,9 @@ def newton_polish(
             cand = theta.copy()
             cand[idx] += t * step
             if hit >= 0 and t == t_max:
-                cand[hit] = upper[hit] if step[list(idx).index(hit)] > 0 else lower[hit]
+                cand[hit] = (
+                    upper[hit] if step[int(np.flatnonzero(idx == hit)[0])] > 0 else lower[hit]
+                )
             try:
                 c_ll, c_llu = lik.loglik(cand)
             except InputError:
@@ -562,8 +564,15 @@ def newton_polish(
         free &= ~on_bound(theta)
     fixed = tuple(n for n, f in zip(spec.param_names, free, strict=True) if not f)
     return PolishResult(
-        theta=theta, loglik=ll, loglik_unnorm=llu, n_steps=n_steps, status=status, last_step=last, fixed=fixed
+        theta=theta,
+        loglik=ll,
+        loglik_unnorm=llu,
+        n_steps=n_steps,
+        status=status,
+        last_step=last,
+        fixed=fixed,
     )
+
 
 # ---------------------------------------------------------------------------
 # Legacy policy: literal port of EM_func / EM_func3

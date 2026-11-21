@@ -111,6 +111,7 @@ ignore = [
     "E501",   # line length is handled by the formatter
     "E741",   # mathematical single-letter names are deliberate
     "D105", "D107", "D203", "D213",
+    "D401",   # numpydoc does not require the imperative mood (properties are noun phrases)
     "RUF002", "RUF003",  # unicode maths symbols in docstrings/comments are deliberate
     "SIM108",
 ]

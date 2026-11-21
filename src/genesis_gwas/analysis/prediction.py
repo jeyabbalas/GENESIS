@@ -104,8 +104,8 @@ class PolygenicPrediction:
         Proportion of the population at :math:`k`-fold or higher risk than average.
     pci
         Proportion of cases arising from that part of the population.
-    risk_sd
-        Convention used for the standard deviation of the log relative risk (see
+    legacy
+        Whether ``ppi``/``pci`` use the original code's :math:`s=\sqrt\mu` (see
         :func:`polyrisk_predict`).
     """
 
@@ -117,7 +117,7 @@ class PolygenicPrediction:
     k_fold: np.ndarray
     ppi: np.ndarray
     pci: np.ndarray
-    risk_sd: str = "upstream"
+    legacy: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Plain-Python representation (arrays become lists)."""
@@ -135,12 +135,12 @@ class PolygenicPrediction:
             "k_fold": conv(self.k_fold),
             "ppi": conv(self.ppi),
             "pci": conv(self.pci),
-            "risk_sd": self.risk_sd,
+            "legacy": self.legacy,
         }
 
 
 def polyrisk_mu(c: Any, n: float, ps: Any, sig2s: Any, M: float, M1: float) -> np.ndarray:
-    r"""The performance measure :math:`\mu(c)` of a thresholded polygenic score.
+    r"""Compute the performance measure :math:`\mu(c)` of a thresholded polygenic score.
 
     Port of ``mu.func`` of the original ``polyriskpredict()`` (see the module docstring
     for the formula); vectorised over the threshold ``c``.
@@ -160,12 +160,15 @@ def polyrisk_mu(c: Any, n: float, ps: Any, sig2s: Any, M: float, M1: float) -> n
     cv = np.asarray(c, dtype=np.float64)
     p = np.asarray(ps, dtype=np.float64)
     s2 = np.asarray(sig2s, dtype=np.float64)
-    tau2 = 1.0 + n * s2
+    with np.errstate(over="ignore", invalid="ignore"):
+        tau2 = 1.0 + n * s2
+        # n sigma^2 / (1 + n sigma^2); its limit 1 when the product overflows
+        ratio = np.where(np.isfinite(tau2), n * s2 / tau2, 1.0)
     tau = np.sqrt(tau2)
     t = cv[..., None] / tau
     tail = ndtr(-t)
     tphi = t * np.exp(-0.5 * t * t) / _SQRT_2PI
-    cmp1 = M1 * ((2.0 * s2 * (tail + (n * s2 / tau2) * tphi)) @ p)
+    cmp1 = M1 * ((2.0 * s2 * (tail + ratio * tphi)) @ p)
     cmp2 = M1 * ((2.0 * tail / n) @ p)
     cmp3 = M1 * ((2.0 * tphi / n) @ p)
     cmp4 = M1 * ((2.0 * s2 * tphi / tau2) @ p)
@@ -243,7 +246,7 @@ def _brent_fmin(f: Callable[[float], float], ax: float, bx: float, tol: float) -
             if fu <= fw or w == x:
                 v, fv = w, fw
                 w, fw = u, fu
-            elif fu <= fv or v == x or v == w:
+            elif fu <= fv or v in (x, w):
                 v, fv = u, fu
     raise GenesisError("Threshold optimisation did not converge")  # pragma: no cover
 
@@ -277,9 +280,9 @@ def polyrisk_predict(
     threshold: str = "optimum",
     alpha_gwas: float = 5e-8,
     k_fold: Sequence[float] = (3, 4, 5),
-    risk_sd: str = "upstream",
+    legacy: bool = False,
 ) -> PolygenicPrediction:
-    r"""Expected AUC and risk stratification of a polygenic risk score.
+    r"""Predict the AUC and risk stratification achievable with a polygenic risk score.
 
     Port of ``polyriskpredict()`` (Fig. 4 and Supplementary Tables 10–11 of Zhang et
     al. 2018). SNPs enter the score either at the significance threshold that maximises
@@ -316,18 +319,21 @@ def polyrisk_predict(
         Genome-wide significance level for ``threshold="gwas"``.
     k_fold
         Risk multiples for ``ppi`` and ``pci``.
-    risk_sd
-        Standard deviation :math:`s` of the log relative risk in the PPI/PCI formulas.
+    legacy
+        Selects the standard deviation :math:`s` of the log relative risk used in the
+        PPI/PCI formulas.
 
-        ``"upstream"`` (default)
-            :math:`s=\sqrt{\mu}`, exactly as coded in the original (and hence as in the
-            paper's Supplementary Tables 10–11).
-        ``"delta"``
+        ``False`` (default)
             :math:`s=\mu`. Under the log-normal risk model that gives
-            :math:`\mathrm{AUC}=\Phi(\mu/\sqrt2)`, the calibrated score has standard
-            deviation :math:`\mu`, not :math:`\sqrt\mu`; this option makes the risk
-            stratification consistent with the reported AUC. Because :math:`\mu<1` in
-            practice, it yields smaller PPI/PCI than the original.
+            :math:`\mathrm{AUC}=\Phi(\mu/\sqrt2)`, the calibrated score
+            :math:`E[S\mid\hat S]` has standard deviation
+            :math:`\operatorname{cov}(\hat S,S)/\operatorname{sd}(\hat S)=\mu`, so this is
+            the choice consistent with the reported AUC.
+        ``True``
+            :math:`s=\sqrt{\mu}`, exactly as coded in the original ``polyriskpredict()``
+            (and hence as in the paper's Supplementary Tables 10–11). Because
+            :math:`\mu<1` in practice, :math:`\sqrt\mu>\mu` and the original overstates
+            the spread of risk, i.e. it yields larger PPI/PCI.
 
     Returns
     -------
@@ -345,8 +351,6 @@ def polyrisk_predict(
     """
     if threshold not in ("optimum", "gwas"):
         raise InputError("threshold must be 'optimum' or 'gwas'")
-    if risk_sd not in ("upstream", "delta"):
-        raise InputError("risk_sd must be 'upstream' or 'delta'")
     if not 0.0 < alpha_gwas < 1.0:
         raise InputError("alpha_gwas must lie in (0, 1)")
     kf = np.atleast_1d(np.asarray(k_fold, dtype=np.float64)).ravel()
@@ -390,10 +394,15 @@ def polyrisk_predict(
             c_gwas = -float(ndtri(alpha_gwas / 2.0))
             mu = float(polyrisk_mu(c_gwas, float(ni), p_arr, s_arr, m_total, m1))
             alphas[i] = alpha_gwas
+        if not math.isfinite(mu):
+            raise GenesisError(f"The PRS performance measure is not finite for n = {ni:g}")
         mus[i] = mu
     auc = ndtr(mus / math.sqrt(2.0))
-    s = np.sqrt(mus) if risk_sd == "upstream" else mus
-    xi = np.log(kf)[None, :] / s[:, None]
+    s = np.sqrt(mus) if legacy else mus
+    with np.errstate(divide="ignore", invalid="ignore"):
+        xi = np.log(kf)[None, :] / s[:, None]
+    # s = 0 (a score without any predictive value): everybody is at exactly average risk
+    xi = np.where(np.isnan(xi), -np.inf, xi)
     ppi = ndtr(-(xi + s[:, None] / 2.0))
     pci = ndtr(-(xi - s[:, None] / 2.0))
     if scalar:
@@ -406,7 +415,7 @@ def polyrisk_predict(
             k_fold=kf,
             ppi=ppi[0],
             pci=pci[0],
-            risk_sd=risk_sd,
+            legacy=bool(legacy),
         )
     return PolygenicPrediction(
         n=nv,
@@ -417,5 +426,5 @@ def polyrisk_predict(
         k_fold=kf,
         ppi=ppi,
         pci=pci,
-        risk_sd=risk_sd,
+        legacy=bool(legacy),
     )

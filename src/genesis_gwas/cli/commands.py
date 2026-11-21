@@ -28,8 +28,25 @@ log = logging.getLogger("genesis_gwas")
 # shared helpers
 # ---------------------------------------------------------------------------
 def _reader_kwargs(args: argparse.Namespace) -> dict[str, Any]:
-    keys = ("snp", "z", "beta", "se", "odds_ratio", "p", "n", "n_cases", "n_controls", "case_fraction",
-            "n_scale", "n_from_se", "chrom", "pos", "eaf", "info", "sep")
+    keys = (
+        "snp",
+        "z",
+        "beta",
+        "se",
+        "odds_ratio",
+        "p",
+        "n",
+        "n_cases",
+        "n_controls",
+        "case_fraction",
+        "n_scale",
+        "n_from_se",
+        "chrom",
+        "pos",
+        "eaf",
+        "info",
+        "sep",
+    )
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) not in (None, False)}
 
 
@@ -51,7 +68,9 @@ def _qc_config(args: argparse.Namespace) -> Any:
     if args.no_qc:
         return QCConfig.none()
     return QCConfig(
-        n_min_fraction=args.n_min_fraction if args.n_min_fraction and args.n_min_fraction > 0 else None,
+        n_min_fraction=args.n_min_fraction
+        if args.n_min_fraction and args.n_min_fraction > 0
+        else None,
         max_chisq=args.max_chisq if args.max_chisq and args.max_chisq > 0 else None,
         hm3_no_mhc=not args.keep_mhc,
         exclude_mhc=not args.keep_mhc,
@@ -77,7 +96,9 @@ def _prepare(args: argparse.Namespace, ref: Any) -> Any:
 def _plan(args: argparse.Namespace) -> Any:
     from genesis_gwas.compute import resolve_plan
 
-    return resolve_plan(args.device, threads=args.threads, chunk_size=args.chunk_size, backend=args.backend)
+    return resolve_plan(
+        args.device, threads=args.threads, chunk_size=args.chunk_size, backend=args.backend
+    )
 
 
 def _em_config(args: argparse.Namespace) -> Any:
@@ -112,7 +133,14 @@ def _progress(print_every: int) -> Any:
     def cb(rec: dict[str, Any]) -> None:
         if rec["iter"] % print_every == 0:
             theta = "  ".join(f"{v:.5e}" for v in rec["theta"])
-            log.info("  %-12s iter %5d  logLik %.4f  c0 %d  [%s]", rec["stage"], rec["iter"], rec["loglik"], rec["c0"], theta)
+            log.info(
+                "  %-12s iter %5d  logLik %.4f  c0 %d  [%s]",
+                rec["stage"],
+                rec["iter"],
+                rec["loglik"],
+                rec["c0"],
+                theta,
+            )
 
     return cb
 
@@ -125,10 +153,17 @@ def _estimates_table(fits: list[Any], selected: Any) -> str:
         for name, est, se in zip(fit.param_names, fit.estimates, fit.se, strict=True):
             rows.append(f"{fit.model}\t{sel}\t{name}\t{name}\t{est:.10g}\t{se:.6g}")
         for key, val in fit.derived.items():
-            rows.append(f"{fit.model}\t{sel}\t{key}\t{DERIVED_LABELS.get(key, key)}\t{val.estimate:.10g}\t{val.se:.6g}")
+            rows.append(
+                f"{fit.model}\t{sel}\t{key}\t{DERIVED_LABELS.get(key, key)}\t{val.estimate:.10g}\t{val.se:.6g}"
+            )
         for key in ("loglik", "bic", "aic", "ds"):
             rows.append(f"{fit.model}\t{sel}\t{key}\t{key}\t{getattr(fit, key):.12g}\tnan")
-        for key, value in (("n_snps", fit.n_snps), ("n_iter", fit.n_iter), ("c0", fit.c0), ("converged", int(fit.converged))):
+        for key, value in (
+            ("n_snps", fit.n_snps),
+            ("n_iter", fit.n_iter),
+            ("c0", fit.c0),
+            ("converged", int(fit.converged)),
+        ):
             rows.append(f"{fit.model}\t{sel}\t{key}\t{key}\t{value}\tnan")
         liab = fit.diagnostics.get("liability")
         if liab:
@@ -193,7 +228,7 @@ def cmd_fit(args: argparse.Namespace) -> int:
     models = [2, 3] if args.model == "both" else [int(args.model)]
     if args.starting is not None and args.model == "both":
         raise InputError("--starting applies to one model; combine it with --model 2 or --model 3.")
-    fits = []
+    fits: list[Any] = []
     for nc in models:
         log.info("Fitting the %s-component model ...", "two" if nc == 2 else "three")
         kwargs = dict(common)
@@ -209,7 +244,12 @@ def cmd_fit(args: argparse.Namespace) -> int:
         fits.append(res)
 
     selected = fits[0]
-    report = [f"genesis-gwas {__version__}", f"input: {args.sumstats}", f"reference: {ref.describe()}", ""]
+    report = [
+        f"genesis-gwas {__version__}",
+        f"input: {args.sumstats}",
+        f"reference: {ref.describe()}",
+        "",
+    ]
     report += [f.summary() + "\n" for f in fits]
     if len(fits) > 1 and not args.no_variance:
         cmp = select_model(fits)
@@ -217,7 +257,10 @@ def cmd_fit(args: argparse.Namespace) -> int:
         report.append(cmp.summary())
         log.info("\n%s", cmp.summary())
     report += ["", "Quality control"]
-    report += [f"  {s['step']:<64} removed {s['removed']:>10,}   remaining {s['remaining']:>10,}" for s in data.meta["qc"]]
+    report += [
+        f"  {s['step']:<64} removed {s['removed']:>10,}   remaining {s['remaining']:>10,}"
+        for s in data.meta["qc"]
+    ]
     Path(f"{prefix}.summary.txt").write_text("\n".join(report) + "\n")
     Path(f"{prefix}.estimates.tsv").write_text(_estimates_table(fits, selected))
     Path(f"{prefix}.best.json").write_text(selected.to_json(include_history=False) + "\n")
@@ -225,7 +268,9 @@ def cmd_fit(args: argparse.Namespace) -> int:
     if args.project:
         from genesis_gwas.analysis.projection import project
 
-        frame = project(selected, np.asarray(args.project, dtype=float), ci=not args.no_variance, seed=args.seed).to_frame()
+        frame = project(
+            selected, np.asarray(args.project, dtype=float), ci=not args.no_variance, seed=args.seed
+        ).to_frame()
         _write_table(frame, f"{prefix}.projection.tsv")
     if args.posterior:
         from genesis_gwas.analysis.posterior import posterior_marginal
@@ -234,33 +279,55 @@ def cmd_fit(args: argparse.Namespace) -> int:
         post.to_csv(f"{prefix}.posterior.tsv.gz", sep="\t", index=False, float_format="%.6g")
         log.info("Wrote %s", f"{prefix}.posterior.tsv.gz")
     if args.qq:
-        _run_qq(data, selected, ref, f"{prefix}", n_sim=args.qq_sims, coverage=0.8, seed=args.seed, axis_max=10.0)
+        _run_qq(
+            data,
+            selected,
+            ref,
+            f"{prefix}",
+            n_sim=args.qq_sims,
+            coverage=0.8,
+            seed=args.seed,
+            axis_max=10.0,
+        )
 
-    log.info("Selected model: %s. Results written to %s.*  (%.1f s)", selected.model, prefix, time.perf_counter() - t0)
+    log.info(
+        "Selected model: %s. Results written to %s.*  (%.1f s)",
+        selected.model,
+        prefix,
+        time.perf_counter() - t0,
+    )
     return 0
 
 
-def _run_qq(data: Any, fit: Any, ref: Any, prefix: str, *, n_sim: int, coverage: float, seed: int, axis_max: float) -> None:
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import pandas as pd
-
+def _run_qq(
+    data: Any,
+    fit: Any,
+    ref: Any,
+    prefix: str,
+    *,
+    n_sim: int,
+    coverage: float,
+    seed: int,
+    axis_max: float,
+) -> None:
     from genesis_gwas.analysis.simulate import qq_simulation
-    from genesis_gwas.plotting.qq import qq_plot
+    from genesis_gwas.plotting import new_axes, qq_plot, save_figure
 
     qq = qq_simulation(data, fit, ref, n_sim=n_sim, coverage=coverage, seed=seed)
-    fig, ax = plt.subplots(figsize=(4.6, 4.6), dpi=200)
-    qq_plot(qq, ax=ax, axis_max=axis_max)
-    fig.tight_layout()
-    fig.savefig(f"{prefix}.qq.png")
-    plt.close(fig)
-    thin = qq.thin(20000)
-    pd.DataFrame({"observed": thin.observed, "expected": thin.expected, "lower": thin.lower, "upper": thin.upper}).to_csv(
+    ax = qq_plot(qq, new_axes(), axis_max=axis_max, title=f"{fit.model}")
+    save_figure(ax, f"{prefix}.qq.png")
+    qq.thin(20000).to_frame().to_csv(
         f"{prefix}.qq.tsv.gz", sep="\t", index=False, float_format="%.6g"
     )
-    log.info("Wrote %s.qq.png and %s.qq.tsv.gz (lambda_obs = %.3f, lambda_fit = %.3f)", prefix, prefix, qq.lambda_obs, qq.lambda_mean)
+    log.info(
+        "Wrote %s.qq.png and %s.qq.tsv.gz (lambda_obs = %.3f, lambda_fit = %.3f; %d simulations%s)",
+        prefix,
+        prefix,
+        qq.lambda_obs,
+        qq.lambda_mean,
+        qq.n_sim,
+        "" if qq.ld_errors else "; independent errors, envelope too narrow",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -272,8 +339,15 @@ def cmd_project(args: argparse.Namespace) -> int:
 
     _configure_logging(args)
     fit = _load_fit(args.fit)
-    res = project(fit, np.asarray(args.n, dtype=float), alpha=args.alpha, ci=args.ci, n_sim=args.n_sim,
-                  coverage=args.coverage, seed=args.seed)
+    res = project(
+        fit,
+        np.asarray(args.n, dtype=float),
+        alpha=args.alpha,
+        ci=args.ci,
+        n_sim=args.n_sim,
+        coverage=args.coverage,
+        seed=args.seed,
+    )
     _write_table(res.to_frame(), args.out)
     return 0
 
@@ -288,9 +362,18 @@ def cmd_predict(args: argparse.Namespace) -> int:
     fit = _load_fit(args.fit)
     rows = []
     for n in args.n:
-        res = polyrisk_predict(n, fit, threshold=args.threshold, alpha_gwas=args.alpha_gwas, k_fold=tuple(args.k_fold))
-        row: dict[str, Any] = {"n": n, "threshold": args.threshold, "alpha": float(res.alpha), "auc": float(res.auc)}
-        for k, ppi, pci in zip(args.k_fold, np.atleast_1d(res.ppi), np.atleast_1d(res.pci), strict=True):
+        res = polyrisk_predict(
+            n, fit, threshold=args.threshold, alpha_gwas=args.alpha_gwas, k_fold=tuple(args.k_fold)
+        )
+        row: dict[str, Any] = {
+            "n": n,
+            "threshold": args.threshold,
+            "alpha": float(res.alpha),
+            "auc": float(res.auc),
+        }
+        for k, ppi, pci in zip(
+            args.k_fold, np.atleast_1d(res.ppi), np.atleast_1d(res.pci), strict=True
+        ):
             row[f"pop_frac_at_{k:g}x_risk"] = float(ppi)
             row[f"case_frac_at_{k:g}x_risk"] = float(pci)
         rows.append(row)
@@ -307,7 +390,9 @@ def cmd_posterior(args: argparse.Namespace) -> int:
     ref = _load_reference(args)
     args.M = fit.M
     data = _prepare(args, ref)
-    frame = posterior_marginal(data, fit, include_inflation=not args.ignore_inflation, plan=_plan(args))
+    frame = posterior_marginal(
+        data, fit, include_inflation=not args.ignore_inflation, plan=_plan(args)
+    )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.out, sep="\t", index=False, float_format="%.6g")
     log.info("Wrote %s (%s SNPs)", args.out, f"{len(frame):,}")
@@ -322,36 +407,37 @@ def cmd_qq(args: argparse.Namespace) -> int:
     args.M = fit.M
     data = _prepare(args, ref)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    _run_qq(data, fit, ref, args.out, n_sim=args.n_sim, coverage=args.coverage, seed=args.seed, axis_max=args.axis_max)
+    _run_qq(
+        data,
+        fit,
+        ref,
+        args.out,
+        n_sim=args.n_sim,
+        coverage=args.coverage,
+        seed=args.seed,
+        axis_max=args.axis_max,
+    )
     return 0
 
 
 def cmd_plot(args: argparse.Namespace) -> int:
     """``genesis plot``."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    from genesis_gwas.plotting.density import plot_effect_density
-    from genesis_gwas.plotting.projection import plot_projection
+    from genesis_gwas.plotting import new_axes, plot_effect_density, plot_projection, save_figure
 
     _configure_logging(args)
     fits: dict[str, Any] = {}
     for item in args.fits:
         label, _, path = item.rpartition("=")
-        fit = _load_fit(path)
-        fits[label or f"{Path(path).stem}"] = fit
-    fig, ax = plt.subplots(figsize=(6.4, 4.4), dpi=200)
+        fits[label or Path(path).name.removesuffix(".json")] = _load_fit(path)
+    ax = new_axes((6.4, 4.4))
     if args.kind == "density":
-        plot_effect_density(fits, xlim=(-args.xlim, args.xlim), ax=ax)
+        plot_effect_density(fits, ax, xlim=(-args.xlim, args.xlim))
     else:
         grid = np.linspace(args.n_max / 200.0, args.n_max, 200)
-        plot_projection(fits, n_grid=grid, what="discoveries" if args.kind == "discoveries" else "gv", ax=ax)
-    fig.tight_layout()
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.out)
-    plt.close(fig)
+        plot_projection(
+            fits, ax, n_grid=grid, what="discoveries" if args.kind == "discoveries" else "gv"
+        )
+    save_figure(ax, args.out)
     log.info("Wrote %s", args.out)
     return 0
 
@@ -416,7 +502,9 @@ def cmd_data_list(args: argparse.Namespace) -> int:
         size = sum(files[r]["bytes"] for r in have)
         total = sum(v["bytes"] for v in files.values())
         print(f"\n{name} v{manifest['version']}: {manifest['panel']}")
-        print(f"  installed {len(have)}/{len(files)} files ({size / 1e6:.0f} of {total / 1e6:.0f} MB) in {root}")
+        print(
+            f"  installed {len(have)}/{len(files)} files ({size / 1e6:.0f} of {total / 1e6:.0f} MB) in {root}"
+        )
         print("  LD configurations: " + ", ".join(c["id"] for c in manifest["ld_configs"]))
         for rel in sorted(files):
             mark = "x" if rel in have else " "
@@ -460,7 +548,11 @@ def cmd_swarm(args: argparse.Namespace) -> int:
         walltime=args.time,
         activate=args.activate,
     )
-    log.info("Wrote %s with %d job(s). Submit it from the Biowulf login node with:", args.swarmfile, len(args.sumstats))
+    log.info(
+        "Wrote %s with %d job(s). Submit it from the Biowulf login node with:",
+        args.swarmfile,
+        len(args.sumstats),
+    )
     print(command)
     return 0
 
@@ -529,17 +621,36 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             si = lik.score_info(theta)
             for _ in range(3):
                 lik.em_pass(theta)
-        vec = np.concatenate([[res.loglik, res.loglik_unnorm], res.counts, res.grad, res.hess.ravel(), si.information.ravel()])
+        assert res.counts is not None and res.grad is not None and res.hess is not None
+        vec = np.concatenate(
+            [
+                [res.loglik, res.loglik_unnorm],
+                res.counts,
+                res.grad,
+                res.hess.ravel(),
+                si.information.ravel(),
+            ]
+        )
         return vec, time.perf_counter() - t0
 
     candidates: list[tuple[str, dict[str, Any]]] = [
         ("numpy / cpu, 1 thread", dict(device="cpu", threads=1)),
-        (f"numpy / cpu, {env['available_cpus']} thread(s)", dict(device="cpu", threads=args.threads)),
+        (
+            f"numpy / cpu, {env['available_cpus']} thread(s)",
+            dict(device="cpu", threads=args.threads),
+        ),
     ]
     if torch_available():
-        candidates.append(("torch / cpu", dict(device="cpu", backend="torch", threads=args.threads)))
+        candidates.append(
+            ("torch / cpu", dict(device="cpu", backend="torch", threads=args.threads))
+        )
         for dev in env["cuda_devices"]:
-            candidates.append((f"torch / cuda:{dev['index']} ({dev['name']})", dict(device=f"cuda:{dev['index']}")))
+            candidates.append(
+                (
+                    f"torch / cuda:{dev['index']} ({dev['name']})",
+                    dict(device=f"cuda:{dev['index']}"),
+                )
+            )
         if len(env["cuda_devices"]) > 1:
             candidates.append((f"torch / all {len(env['cuda_devices'])} GPUs", dict(device="cuda")))
     reference_vec = None
@@ -550,7 +661,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             vec, secs = evaluate(resolve_plan(**kw))
             if reference_vec is None:
                 reference_vec = vec
-            err = float(np.max(np.abs(vec - reference_vec) / np.maximum(np.abs(reference_vec), 1e-300)))
+            err = float(
+                np.max(np.abs(vec - reference_vec) / np.maximum(np.abs(reference_vec), 1e-300))
+            )
             passed = err < 1e-8
             checks.append({"backend": label, "max_rel_diff": err, "seconds": secs, "ok": passed})
         except Exception as exc:  # report, do not crash: this is a diagnostic tool
@@ -564,23 +677,41 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print(json.dumps(env, indent=2))
     else:
         print(f"genesis-gwas {__version__}")
-        print(f"  python {env['python']}  numpy {env['numpy']}  scipy {env['scipy']}  torch {env['torch'] or 'not installed'}")
+        print(
+            f"  python {env['python']}  numpy {env['numpy']}  scipy {env['scipy']}  torch {env['torch'] or 'not installed'}"
+        )
         print(f"  platform: {env['platform']}")
-        print(f"  CPUs available to this process: {env['available_cpus']} (machine: {env['os_cpu_count']})"
-              + (f"  [Slurm job {env['slurm_job_id']}, --cpus-per-task={env['slurm_cpus_per_task']}]" if env["slurm_job_id"] else ""))
+        print(
+            f"  CPUs available to this process: {env['available_cpus']} (machine: {env['os_cpu_count']})"
+            + (
+                f"  [Slurm job {env['slurm_job_id']}, --cpus-per-task={env['slurm_cpus_per_task']}]"
+                if env["slurm_job_id"]
+                else ""
+            )
+        )
         if env["torch"]:
             cuda = env.get("torch_cuda_build")
-            print(f"  PyTorch CUDA build: {cuda or 'none (CPU-only build)'}; CUDA_VISIBLE_DEVICES={env['cuda_visible_devices']}")
+            print(
+                f"  PyTorch CUDA build: {cuda or 'none (CPU-only build)'}; CUDA_VISIBLE_DEVICES={env['cuda_visible_devices']}"
+            )
         if env["cuda_devices"]:
             for dev in env["cuda_devices"]:
                 print(f"  GPU {dev['index']}: {dev['name']} ({dev['memory_gib']} GiB)")
         else:
             print("  GPUs: none visible")
-        print("\nSelf-test (three-component likelihood, scores and information on the packaged chr22 data):")
+        print(
+            "\nSelf-test (three-component likelihood, scores and information on the packaged chr22 data):"
+        )
         for c in checks:
             if "error" in c:
                 print(f"  FAIL  {c['backend']:<44} {c['error']}")
             else:
-                print(f"  {'ok  ' if c['ok'] else 'FAIL'}  {c['backend']:<44} max rel. diff {c['max_rel_diff']:.1e}   {c['seconds']:.2f} s")
-        print("\nAll backends agree." if ok else "\nPROBLEM: at least one backend failed or disagrees (see above).")
+                print(
+                    f"  {'ok  ' if c['ok'] else 'FAIL'}  {c['backend']:<44} max rel. diff {c['max_rel_diff']:.1e}   {c['seconds']:.2f} s"
+                )
+        print(
+            "\nAll backends agree."
+            if ok
+            else "\nPROBLEM: at least one backend failed or disagrees (see above)."
+        )
     return 0 if ok else 1

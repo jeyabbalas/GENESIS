@@ -173,11 +173,14 @@ def power_integrals(n: Any, variance: Any, alpha: float = 5e-8) -> tuple[np.ndar
     if np.any(s2 < 0) or not np.all(np.isfinite(s2)):
         raise InputError("Variances must be finite and >= 0")
     c = -float(ndtri(alpha / 2.0))
-    tau2 = 1.0 + nv * s2
+    with np.errstate(over="ignore", invalid="ignore"):
+        tau2 = 1.0 + nv * s2
+        # n sigma^2 / (1 + n sigma^2); its limit 1 when the product overflows
+        ratio = np.where(np.isfinite(tau2), nv * s2 / tau2, 1.0)
     t = c / np.sqrt(tau2)
     tail = ndtr(-t)
     phi = np.exp(-0.5 * t * t) / _SQRT_2PI
-    return 2.0 * tail, 2.0 * s2 * (tail + (nv * s2 / tau2) * t * phi)
+    return 2.0 * tail, 2.0 * s2 * (tail + ratio * t * phi)
 
 
 def _point(

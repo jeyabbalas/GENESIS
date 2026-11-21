@@ -68,13 +68,13 @@ class _Shard:
 
 
 class Engine:
-    """Run kernels over all SNPs according to a :class:`~genesis_gwas.compute.ComputePlan`.
+    r"""Run kernels over all SNPs according to a :class:`~genesis_gwas.compute.ComputePlan`.
 
     Parameters
     ----------
     data
-        The model inputs. Derived per-SNP quantities (:math:`\\hat\\beta^2`,
-        :math:`\\ell/N^*`, the index into the table of distinct :math:`N^*`) are computed
+        The model inputs. Derived per-SNP quantities (:math:`\hat\beta^2`,
+        :math:`\ell/N^*`, the index into the table of distinct :math:`N^*`) are computed
         once here and kept on the device(s).
     plan
         Execution plan from :func:`genesis_gwas.compute.resolve_plan`.

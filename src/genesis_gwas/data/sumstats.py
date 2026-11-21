@@ -45,28 +45,120 @@ log = logging.getLogger("genesis_gwas")
 
 #: Recognised spellings (lower-cased) of each logical column.
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
-    "SNP": ("snp", "rsid", "rs", "rs_id", "rsids", "markername", "marker", "snpid", "id",
-            "variant_id", "variant", "snp_id", "rs_number", "hm_rsid"),
+    "SNP": (
+        "snp",
+        "rsid",
+        "rs",
+        "rs_id",
+        "rsids",
+        "markername",
+        "marker",
+        "snpid",
+        "id",
+        "variant_id",
+        "variant",
+        "snp_id",
+        "rs_number",
+        "hm_rsid",
+    ),
     "Z": ("z", "zscore", "z_score", "z-score", "zstat", "z_stat", "tstat", "t_stat", "stat"),
-    "BETA": ("beta", "b", "effect", "effects", "log_or", "logor", "log_odds", "est", "estimate",
-             "effect_size", "hm_beta"),
-    "SE": ("se", "stderr", "std_err", "standard_error", "se_beta", "sebeta", "stderrlogor",
-           "log_or_se"),
+    "BETA": (
+        "beta",
+        "b",
+        "effect",
+        "effects",
+        "log_or",
+        "logor",
+        "log_odds",
+        "est",
+        "estimate",
+        "effect_size",
+        "hm_beta",
+    ),
+    "SE": (
+        "se",
+        "stderr",
+        "std_err",
+        "standard_error",
+        "se_beta",
+        "sebeta",
+        "stderrlogor",
+        "log_or_se",
+    ),
     "OR": ("or", "odds_ratio", "oddsratio", "hm_odds_ratio"),
-    "P": ("p", "pval", "p_val", "pvalue", "p_value", "p-value", "p.value", "gc_pvalue", "pval_nominal"),
-    "N": ("n", "neff", "n_eff", "n_effective", "samplesize", "sample_size", "n_total", "ntotal",
-          "weight", "n_complete_samples", "totalsamplesize", "obs_ct"),
+    "P": (
+        "p",
+        "pval",
+        "p_val",
+        "pvalue",
+        "p_value",
+        "p-value",
+        "p.value",
+        "gc_pvalue",
+        "pval_nominal",
+    ),
+    "N": (
+        "n",
+        "neff",
+        "n_eff",
+        "n_effective",
+        "samplesize",
+        "sample_size",
+        "n_total",
+        "ntotal",
+        "weight",
+        "n_complete_samples",
+        "totalsamplesize",
+        "obs_ct",
+    ),
     "NCASE": ("n_cases", "ncase", "ncases", "n_case", "n_cas", "nca", "cases", "n_cases_total"),
-    "NCONTROL": ("n_controls", "ncontrol", "ncontrols", "n_control", "n_con", "nco", "controls",
-                 "n_controls_total"),
+    "NCONTROL": (
+        "n_controls",
+        "ncontrol",
+        "ncontrols",
+        "n_control",
+        "n_con",
+        "nco",
+        "controls",
+        "n_controls_total",
+    ),
     "CHR": ("chr", "chrom", "chromosome", "#chrom", "#chr", "hm_chrom", "chr_name"),
-    "POS": ("pos", "bp", "position", "base_pair_location", "base_pair", "hm_pos", "chr_position",
-            "genpos", "pos_b37", "pos_b38"),
+    "POS": (
+        "pos",
+        "bp",
+        "position",
+        "base_pair_location",
+        "base_pair",
+        "hm_pos",
+        "chr_position",
+        "genpos",
+        "pos_b37",
+        "pos_b38",
+    ),
     "A1": ("a1", "effect_allele", "allele1", "ea", "alt", "tested_allele", "hm_effect_allele"),
-    "A2": ("a2", "other_allele", "allele2", "nea", "ref", "non_effect_allele", "hm_other_allele",
-           "allele0"),
-    "EAF": ("eaf", "frq", "freq", "af", "maf", "effect_allele_frequency", "a1freq", "freq1",
-            "frq_u", "af_alt", "a1_freq"),
+    "A2": (
+        "a2",
+        "other_allele",
+        "allele2",
+        "nea",
+        "ref",
+        "non_effect_allele",
+        "hm_other_allele",
+        "allele0",
+    ),
+    "EAF": (
+        "eaf",
+        "frq",
+        "freq",
+        "af",
+        "maf",
+        "effect_allele_frequency",
+        "a1freq",
+        "freq1",
+        "frq_u",
+        "af_alt",
+        "a1_freq",
+    ),
     "INFO": ("info", "imputation_info", "impinfo", "r2", "rsq", "info_score"),
 }
 
@@ -128,9 +220,7 @@ def _sniff_delimiter(path: Path) -> str:
     return r"\s+"
 
 
-def _resolve_columns(
-    available: list[str], overrides: dict[str, str | None]
-) -> dict[str, str]:
+def _resolve_columns(available: list[str], overrides: dict[str, str | None]) -> dict[str, str]:
     lower = {c.lower(): c for c in available}
     found: dict[str, str] = {}
     for logical, aliases in COLUMN_ALIASES.items():
@@ -218,8 +308,18 @@ def read_sumstats(
         If ``Z`` or ``N`` cannot be derived from the columns present.
     """
     overrides: dict[str, str | None] = {}
-    for key, val in (("SNP", snp), ("Z", z), ("BETA", beta), ("SE", se), ("OR", odds_ratio),
-                     ("P", p), ("CHR", chrom), ("POS", pos), ("EAF", eaf), ("INFO", info)):
+    for key, val in (
+        ("SNP", snp),
+        ("Z", z),
+        ("BETA", beta),
+        ("SE", se),
+        ("OR", odds_ratio),
+        ("P", p),
+        ("CHR", chrom),
+        ("POS", pos),
+        ("EAF", eaf),
+        ("INFO", info),
+    ):
         if val is not None:
             overrides[key] = val
     n_const: float | None = None
@@ -228,11 +328,15 @@ def read_sumstats(
     elif n is not None:
         n_const = float(n)
     const_cc: dict[str, float] = {}
-    for key, val in (("NCASE", n_cases), ("NCONTROL", n_controls)):
-        if isinstance(val, str):
-            overrides[key] = val
-        elif val is not None:
-            const_cc[key] = float(val)
+    cc_options: tuple[tuple[str, str | float | None], ...] = (
+        ("NCASE", n_cases),
+        ("NCONTROL", n_controls),
+    )
+    for key, cc_val in cc_options:
+        if isinstance(cc_val, str):
+            overrides[key] = cc_val
+        elif cc_val is not None:
+            const_cc[key] = float(cc_val)
 
     if isinstance(path, pd.DataFrame):
         source = "<DataFrame>"
@@ -246,7 +350,9 @@ def read_sumstats(
         source = str(fpath)
         delim = sep if sep is not None else _sniff_delimiter(fpath)
         try:
-            header = pd.read_csv(fpath, sep=delim, nrows=0, engine="c" if delim != r"\s+" else "python")
+            header = pd.read_csv(
+                fpath, sep=delim, nrows=0, engine="c" if delim != r"\s+" else "python"
+            )
         except Exception as exc:
             raise DataError(f"Cannot parse the header of {fpath}: {exc}") from exc
         available = [str(c) for c in header.columns]
@@ -303,7 +409,9 @@ def read_sumstats(
             sign = np.sign(num("BETA")) if "BETA" in cols else np.sign(np.log(num("OR")))
             pv = num("P")
             zval = sign * (-ndtri(pv / 2.0))
-            details["z_from"] = f"sign({cols.get('BETA', cols.get('OR'))}) * |Phi^-1({cols['P']}/2)|"
+            details["z_from"] = (
+                f"sign({cols.get('BETA', cols.get('OR'))}) * |Phi^-1({cols['P']}/2)|"
+            )
         else:
             raise DataError(
                 "Cannot derive Z statistics: need a Z column, BETA and SE, OR and SE, or a "
@@ -320,7 +428,9 @@ def read_sumstats(
     explicit_cc = n_cases is not None or n_controls is not None
     if explicit_n and explicit_cc:
         raise InputError("Give either n or n_cases/n_controls, not both.")
-    have_cc = ("NCASE" in cols or "NCASE" in const_cc) and ("NCONTROL" in cols or "NCONTROL" in const_cc)
+    have_cc = ("NCASE" in cols or "NCASE" in const_cc) and (
+        "NCONTROL" in cols or "NCONTROL" in const_cc
+    )
     if explicit_cc and not have_cc:
         raise DataError(
             "Both case and control counts are needed (columns or numbers); "
@@ -341,7 +451,11 @@ def read_sumstats(
             details["n_from"] = cols["N"]
         elif have_cc:
             nca = np.full(len(raw), const_cc["NCASE"]) if "NCASE" in const_cc else num("NCASE")
-            nco = np.full(len(raw), const_cc["NCONTROL"]) if "NCONTROL" in const_cc else num("NCONTROL")
+            nco = (
+                np.full(len(raw), const_cc["NCONTROL"])
+                if "NCONTROL" in const_cc
+                else num("NCONTROL")
+            )
             nval = nca * nco / (nca + nco)
             details["n_from"] = "effective N = n_cases * n_controls / (n_cases + n_controls)"
             if "N" in cols and not explicit_cc:
@@ -349,7 +463,10 @@ def read_sumstats(
                     "Found case/control count columns (%s, %s) as well as %r: using the effective "
                     "sample size n_cases*n_controls/(n_cases+n_controls). Pass n=%r to use that "
                     "column as is.",
-                    cols.get("NCASE"), cols.get("NCONTROL"), cols["N"], cols["N"],
+                    cols.get("NCASE"),
+                    cols.get("NCONTROL"),
+                    cols["N"],
+                    cols["N"],
                 )
         elif "N" in cols:
             nval = num("N")
@@ -380,6 +497,9 @@ def read_sumstats(
     out = out.reset_index(drop=True)
     log.info(
         "Read %s rows from %s (Z from %s; N from %s)",
-        f"{len(out):,}", source, details["z_from"], details["n_from"],
+        f"{len(out):,}",
+        source,
+        details["z_from"],
+        details["n_from"],
     )
     return SumStats(table=out, info=details, source=source)

@@ -60,7 +60,9 @@ def known_bundles() -> tuple[str, ...]:
 def load_packaged_manifest(name: str) -> dict[str, Any]:
     """Manifest (file list with checksums) of a downloadable bundle, as shipped in the package."""
     if name not in _REMOTE_BUNDLES:
-        raise ReferenceDataError(f"Unknown reference bundle {name!r}; known: {sorted(_REMOTE_BUNDLES)}")
+        raise ReferenceDataError(
+            f"Unknown reference bundle {name!r}; known: {sorted(_REMOTE_BUNDLES)}"
+        )
     text = (resources.files("genesis_gwas") / "data" / "manifests" / f"{name}.json").read_text()
     return json.loads(text)
 
@@ -187,7 +189,13 @@ def _download(
             last = exc
         if attempt < retries:
             wait = min(60.0, 2.0**attempt)
-            log.warning("Download attempt %d/%d failed (%s); retrying in %.0f s", attempt, retries, last, wait)
+            log.warning(
+                "Download attempt %d/%d failed (%s); retrying in %.0f s",
+                attempt,
+                retries,
+                last,
+                wait,
+            )
             time.sleep(wait)
     raise DownloadError(f"Could not download {url} after {retries} attempts: {last}")
 
@@ -258,14 +266,14 @@ def fetch_bundle(
     components: str | list[str] = "default",
     data_dir: str | os.PathLike[str] | None = None,
 ) -> Path:
-    """Download (parts of) a reference bundle into the data directory.
+    r"""Download (parts of) a reference bundle into the data directory.
 
     Parameters
     ----------
     bundle
         Bundle name.
     components
-        ``"default"`` (SNP table + the 1 Mb / :math:`r^2\\ge0.1` configuration, 32 MB),
+        ``"default"`` (SNP table + the 1 Mb / :math:`r^2\ge0.1` configuration, 32 MB),
         ``"ld"`` (all nine LD configurations), ``"pairld"``, ``"nullz"`` (null Z-score
         replicates for QQ envelopes, 214 MB), ``"examples"``, ``"all"`` (480 MB), an LD
         configuration id such as ``"w2000kb_r0.05"``, or a list of these.

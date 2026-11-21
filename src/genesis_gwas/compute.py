@@ -14,6 +14,7 @@ The rules are deliberately boring and HPC-safe:
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -103,7 +104,7 @@ def _cuda_devices() -> list[str]:
 
 
 def resolve_plan(
-    device: str | list[str] | tuple[str, ...] = "auto",
+    device: str | Sequence[str] = "auto",
     *,
     threads: int | None = None,
     chunk_size: int | None = None,
@@ -139,10 +140,10 @@ def resolve_plan(
         raise InputError("chunk_size must be >= 1")
     n_threads = int(threads) if threads is not None else available_cpus()
 
-    if isinstance(device, (list, tuple)):
-        requested = [str(d).strip() for d in device]
+    if isinstance(device, str):
+        requested = [d.strip() for d in device.split(",") if d.strip()]
     else:
-        requested = [d.strip() for d in str(device).split(",") if d.strip()]
+        requested = [str(d).strip() for d in device]
     if not requested:
         raise InputError("device must not be empty")
 

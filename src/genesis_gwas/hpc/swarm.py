@@ -22,7 +22,20 @@ from genesis_gwas.exceptions import InputError
 
 __all__ = ["swarm_command", "trait_name", "write_swarm"]
 
-_SUFFIXES = (".gz", ".bgz", ".bz2", ".xz", ".zst", ".txt", ".tsv", ".csv", ".sumstats", ".assoc", ".ma", ".tbl")
+_SUFFIXES = (
+    ".gz",
+    ".bgz",
+    ".bz2",
+    ".xz",
+    ".zst",
+    ".txt",
+    ".tsv",
+    ".csv",
+    ".sumstats",
+    ".assoc",
+    ".ma",
+    ".tbl",
+)
 
 
 def trait_name(path: str | os.PathLike[str]) -> str:
@@ -69,10 +82,26 @@ def swarm_command(
     """
     if cpus < 1 or mem_gb < 1:
         raise InputError("cpus and mem_gb must be >= 1")
-    parts = ["swarm", "-f", shlex.quote(os.fspath(swarmfile)), "-g", str(int(mem_gb)), "-t", str(int(cpus)),
-             "--time", walltime]
+    parts = [
+        "swarm",
+        "-f",
+        shlex.quote(os.fspath(swarmfile)),
+        "-g",
+        str(int(mem_gb)),
+        "-t",
+        str(int(cpus)),
+        "--time",
+        walltime,
+    ]
     if gpu:
-        parts += ["--partition", "gpu", "--gres", "gpu:1", "--sbatch", shlex.quote('--constraint="gpuv100x|gpua100|gpul40"')]
+        parts += [
+            "--partition",
+            "gpu",
+            "--gres",
+            "gpu:1",
+            "--sbatch",
+            shlex.quote('--constraint="gpuv100x|gpua100|gpul40"'),
+        ]
     if logdir is not None:
         parts += ["--logdir", shlex.quote(os.fspath(logdir))]
     return " ".join(parts)
@@ -121,12 +150,23 @@ def write_swarm(
     names = [trait_name(p) for p in sumstats]
     dupes = sorted({n for n in names if names.count(n) > 1})
     if dupes:
-        raise InputError(f"These inputs would write to the same output prefix: {dupes}. Rename the files.")
+        raise InputError(
+            f"These inputs would write to the same output prefix: {dupes}. Rename the files."
+        )
     out = Path(os.fspath(outdir))
     device = "cuda" if gpu else "cpu"
     lines = []
     for path, name in zip(sumstats, names, strict=True):
-        cmd = [executable, "fit", os.fspath(path), "--out", str(out / name), "--device", device, *fit_args]
+        cmd = [
+            executable,
+            "fit",
+            os.fspath(path),
+            "--out",
+            str(out / name),
+            "--device",
+            device,
+            *fit_args,
+        ]
         line = " ".join(shlex.quote(c) for c in cmd)
         if activate.strip():
             line = f"{activate.strip()} && {line}"
@@ -138,4 +178,6 @@ def write_swarm(
         "# Threads are taken from $SLURM_CPUS_PER_TASK automatically.\n"
     )
     sf.write_text(header + "\n".join(lines) + "\n")
-    return swarm_command(sf, gpu=gpu, cpus=cpus, mem_gb=mem_gb, walltime=walltime, logdir=out / "logs")
+    return swarm_command(
+        sf, gpu=gpu, cpus=cpus, mem_gb=mem_gb, walltime=walltime, logdir=out / "logs"
+    )

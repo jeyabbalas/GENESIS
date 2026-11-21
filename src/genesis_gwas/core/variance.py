@@ -134,7 +134,7 @@ def neighborhood_sums(
     K, P = S.shape
     n_ref = neighborhoods.n_ref
     if ref_index is None:
-        if K != n_ref:
+        if n_ref != K:
             raise InputError(
                 f"ref_index is required: {K} markers but {n_ref} reference SNPs in the neighbourhoods"
             )
@@ -210,10 +210,10 @@ class SandwichResult:
 
 
 def scaled_inverse(A: np.ndarray) -> tuple[np.ndarray, float]:
-    """Invert a badly scaled square matrix via symmetric diagonal equilibration.
+    r"""Invert a badly scaled square matrix via symmetric diagonal equilibration.
 
     The information matrix mixes parameters whose magnitudes differ by ten orders of
-    magnitude (:math:`\\pi_c\\sim10^{-2}`, :math:`a\\sim10^{-6}`), so its raw condition
+    magnitude (:math:`\pi_c\sim10^{-2}`, :math:`a\sim10^{-6}`), so its raw condition
     number is astronomically large although the problem is well posed. Scaling by
     ``D = diag(|A_ii|)^(-1/2)`` removes that artefact.
 
@@ -243,7 +243,7 @@ def sandwich(
     free: np.ndarray | None = None,
     self_double_count: bool = False,
 ) -> SandwichResult:
-    """Compute the sandwich covariance :math:`I^{-1} J I^{-1}`.
+    r"""Compute the sandwich covariance :math:`I^{-1} J I^{-1}`.
 
     Parameters
     ----------
@@ -253,7 +253,7 @@ def sandwich(
         ``(P, P)`` total observed information at the estimate.
     neighborhoods
         Tagging neighbourhoods; ``None`` treats markers as independent
-        (:math:`J=\\sum_k U_kU_k^\\top`), which understates uncertainty for real GWAS data.
+        (:math:`J=\sum_k U_kU_k^\top`), which understates uncertainty for real GWAS data.
     ref_index
         Reference row of each marker (see :func:`neighborhood_sums`).
     free

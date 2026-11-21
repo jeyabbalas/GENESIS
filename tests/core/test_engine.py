@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from tests.helpers import simulate
 
 from genesis_gwas.backends import get_backend, torch_available
 from genesis_gwas.compute import available_cpus, resolve_plan
@@ -11,7 +12,6 @@ from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec
 from genesis_gwas.exceptions import BackendError, InputError
-from tests.helpers import simulate
 
 needs_torch = pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
 TH3 = np.array([0.012, 0.2, 2e-4, 2e-5, 1.2e-6])
@@ -57,8 +57,14 @@ def test_results_do_not_depend_on_threads_or_chunking(data, spec, theta):
         np.testing.assert_array_equal(a[key], b[key], err_msg=key)
     # different chunking: equal up to floating-point reassociation of the sums
     _assert_close(a, base, rtol=1e-10)
-    _assert_close(_everything(data, resolve_plan("cpu", threads=3, chunk_size=1), spec, theta), base, 1e-10)
-    _assert_close(_everything(data, resolve_plan("cpu", threads=2, chunk_size=10**6), spec, theta), base, 1e-10)
+    _assert_close(
+        _everything(data, resolve_plan("cpu", threads=3, chunk_size=1), spec, theta), base, 1e-10
+    )
+    _assert_close(
+        _everything(data, resolve_plan("cpu", threads=2, chunk_size=10**6), spec, theta),
+        base,
+        1e-10,
+    )
 
 
 @needs_torch
@@ -70,7 +76,10 @@ def test_torch_backend_matches_numpy(data, spec, theta):
     _assert_close(torch_cpu, base, rtol=1e-10)
     # several shards (stand-in for several GPUs) with small chunks inside each
     shards = _everything(
-        data, resolve_plan(["cpu", "cpu", "cpu"], backend="torch", threads=2, chunk_size=401), spec, theta
+        data,
+        resolve_plan(["cpu", "cpu", "cpu"], backend="torch", threads=2, chunk_size=401),
+        spec,
+        theta,
     )
     _assert_close(shards, base, rtol=1e-10)
 

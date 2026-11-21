@@ -31,7 +31,9 @@ def test_plain_snp_z_n(tmp_path):
     assert ss.info["z_from"] == "Z" and ss.info["n_from"] == "N" and ss.source.endswith("a.tsv")
 
 
-@pytest.mark.parametrize("sep,name", [(",", "a.csv"), (" ", "a.txt"), ("   ", "b.txt"), ("\t", "a.tsv.gz")])
+@pytest.mark.parametrize(
+    "sep,name", [(",", "a.csv"), (" ", "a.txt"), ("   ", "b.txt"), ("\t", "a.tsv.gz")]
+)
 def test_delimiters_and_compression(tmp_path, sep, name):
     rows = ["rsid beta se n", "rs1 0.02 0.01 5000", "rs2 -0.03 0.01 5000"]
     text = "\n".join(sep.join(r.split()) for r in rows) + "\n"
@@ -41,11 +43,19 @@ def test_delimiters_and_compression(tmp_path, sep, name):
 
 
 def test_z_from_odds_ratio_and_from_p(tmp_path):
-    p = _write(tmp_path, "or.tsv", "MarkerName\tOR\tSE\tP\tN\nrs1\t1.2\t0.05\t0.001\t100\nrs2\t0.8\t0.05\t0.5\t100\n")
+    p = _write(
+        tmp_path,
+        "or.tsv",
+        "MarkerName\tOR\tSE\tP\tN\nrs1\t1.2\t0.05\t0.001\t100\nrs2\t0.8\t0.05\t0.5\t100\n",
+    )
     ss = read_sumstats(p)
     np.testing.assert_allclose(ss.table["Z"], np.log([1.2, 0.8]) / 0.05)
     # P + sign of effect, without a standard error
-    p = _write(tmp_path, "p.tsv", "snp\tbeta\tpval\tn\nrs1\t0.3\t1e-8\t100\nrs2\t-0.1\t0.05\t100\nrs3\t0.2\t1e-300\t100\n")
+    p = _write(
+        tmp_path,
+        "p.tsv",
+        "snp\tbeta\tpval\tn\nrs1\t0.3\t1e-8\t100\nrs2\t-0.1\t0.05\t100\nrs3\t0.2\t1e-300\t100\n",
+    )
     ss = read_sumstats(p)
     expect = np.array([1, -1, 1]) * norm.isf(np.array([1e-8, 0.05, 1e-300]) / 2)
     np.testing.assert_allclose(ss.table["Z"], expect, rtol=1e-10)
@@ -58,9 +68,13 @@ def test_sample_size_options(tmp_path):
     ss = read_sumstats(p, n_cases="Ncase", n_controls="Ncontrol")
     np.testing.assert_allclose(ss.table["N"], [750.0, 250.0])  # ncase*ncontrol/(ncase+ncontrol)
     assert "effective" in ss.info["n_from"]
-    np.testing.assert_allclose(read_sumstats(p, n_cases=1000, n_controls=3000).table["N"], [750.0, 750.0])
+    np.testing.assert_allclose(
+        read_sumstats(p, n_cases=1000, n_controls=3000).table["N"], [750.0, 750.0]
+    )
     np.testing.assert_allclose(read_sumstats(p, n=1234).table["N"], [1234.0, 1234.0])
-    np.testing.assert_allclose(read_sumstats(p, n="Ntot", case_fraction=0.25).table["N"], [750.0, 187.5])
+    np.testing.assert_allclose(
+        read_sumstats(p, n="Ntot", case_fraction=0.25).table["N"], [750.0, 187.5]
+    )
     # METAL/PGC-style effective N is four times the GENESIS convention
     np.testing.assert_allclose(read_sumstats(p, n="Ntot", n_scale=0.25).table["N"], [1000.0, 250.0])
     # explicit choices beat auto-detected columns; conflicting choices are refused
@@ -84,7 +98,9 @@ def test_n_from_standard_error_and_allele_frequency(tmp_path):
 
 
 def test_column_overrides_and_case_insensitivity(tmp_path):
-    p = _write(tmp_path, "odd.tsv", "variant_name\tmy_z\tsamples\tZ\nrs1\t1.0\t10\t99\nrs2\t2.0\t20\t99\n")
+    p = _write(
+        tmp_path, "odd.tsv", "variant_name\tmy_z\tsamples\tZ\nrs1\t1.0\t10\t99\nrs2\t2.0\t20\t99\n"
+    )
     ss = read_sumstats(p, snp="variant_name", z="MY_Z", n="samples")
     np.testing.assert_allclose(ss.table["Z"], [1.0, 2.0])
     np.testing.assert_allclose(ss.table["N"], [10.0, 20.0])
@@ -93,7 +109,9 @@ def test_column_overrides_and_case_insensitivity(tmp_path):
 
 
 def test_missing_values_survive_as_nan(tmp_path):
-    p = _write(tmp_path, "na.tsv", "SNP\tZ\tN\nrs1\tNA\t100\nrs2\t1.0\t.\nrs3\tabc\t100\nrs4\t2.0\t100\n")
+    p = _write(
+        tmp_path, "na.tsv", "SNP\tZ\tN\nrs1\tNA\t100\nrs2\t1.0\t.\nrs3\tabc\t100\nrs4\t2.0\t100\n"
+    )
     ss = read_sumstats(p)
     assert ss.table["Z"].isna().tolist() == [True, False, True, False]
     assert ss.table["N"].isna().tolist() == [False, True, False, False]
@@ -101,7 +119,8 @@ def test_missing_values_survive_as_nan(tmp_path):
 
 def test_positions_alleles_and_extras(tmp_path):
     p = _write(
-        tmp_path, "pos.tsv",
+        tmp_path,
+        "pos.tsv",
         "CHR\tBP\tA1\tA2\tZ\tN\tINFO\tFRQ\nchr1\t100\ta\tg\t1\t10\t0.9\t0.2\n22\t200\tC\tT\t2\t10\t0.5\t0.6\n",
     )
     ss = read_sumstats(p)

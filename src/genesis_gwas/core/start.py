@@ -38,7 +38,7 @@ FALLBACK_STARTING_PIC = 5e-3
 
 @dataclass(frozen=True)
 class LDScoreRegression:
-    """Result of the unweighted LD-score regression used for initialisation.
+    r"""Result of the unweighted LD-score regression used for initialisation.
 
     Attributes
     ----------
@@ -46,7 +46,7 @@ class LDScoreRegression:
         OLS coefficients of ``chi2 ~ 1 + ldscore * mean(n) / M``. ``slope`` is a crude
         estimate of total heritability; ``intercept - 1`` measures confounding.
     mean_chi2
-        Mean :math:`\\chi^2` statistic.
+        Mean :math:`\chi^2` statistic.
     lambda_gc
         Genomic-control factor, ``median(chi2) / 0.4549``.
     """
@@ -70,7 +70,7 @@ _CHI2_MEDIAN = 0.45493642311957283  # qchisq(0.5, 1)
 
 
 def ldsc_regression(data: ModelData) -> LDScoreRegression:
-    """Unweighted LD-score regression of :math:`z^2` on :math:`\\ell\\,\\bar n/M`."""
+    r"""Unweighted LD-score regression of :math:`z^2` on :math:`\ell\,\bar n/M`."""
     chisq = data.betahat**2 / data.varbetahat
     x = data.ldscore * float(np.mean(1.0 / data.varbetahat)) / data.M
     xm = float(x.mean())

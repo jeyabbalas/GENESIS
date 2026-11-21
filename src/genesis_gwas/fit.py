@@ -351,9 +351,12 @@ def fit(
         labels_swapped = False
         degenerate = False
         if spec.n_components == 3:
-            s1, s2 = float(theta[2]), float(theta[3])
-            merged = abs(s1 - s2) <= 1e-2 * max(s1, s2)
-            empty = min(s1, s2) <= 1e-11
+            sig_hi, sig_lo = (
+                max(float(theta[2]), float(theta[3])),
+                min(float(theta[2]), float(theta[3])),
+            )
+            merged = (sig_hi - sig_lo) <= 1e-2 * sig_hi
+            empty = sig_lo <= 1e-11
             if merged or empty:
                 degenerate = True
                 why = (
@@ -385,7 +388,9 @@ def fit(
                 # conditional on the constraint and theirs are reported as NaN.
                 if spec.n_components == 3:
                     for i, bounds in ((0, cfg.pic_bounds), (1, cfg.p1_bounds)):
-                        if np.isclose(theta[i], bounds[0], rtol=1e-9) or np.isclose(theta[i], bounds[1], rtol=1e-9):
+                        if np.isclose(theta[i], bounds[0], rtol=1e-9) or np.isclose(
+                            theta[i], bounds[1], rtol=1e-9
+                        ):
                             free[i] = False
                             bound_names.append(spec.param_names[i])
                 for i in spec.idx_sig:

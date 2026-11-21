@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 import tests.upstream_port as up
+
 from genesis_gwas.core.engine import Engine
 from genesis_gwas.core.likelihood import CompositeLikelihood
 from genesis_gwas.core.spec import ModelSpec
@@ -90,7 +90,9 @@ def test_m3_matches_port(small_data, plan1, par, c0):
     # ... and adding E[r r'] at (sigmasq1, pic) reproduces the original's asymmetric matrix.
     legacy = si.information.copy()
     legacy[2, 0] += si.e_rr[2, 0]
-    np.testing.assert_allclose(legacy, up.I3(par, b, s2, ld, c0, d.nstar, reproduce_typo=True), rtol=1e-8)
+    np.testing.assert_allclose(
+        legacy, up.I3(par, b, s2, ld, c0, d.nstar, reproduce_typo=True), rtol=1e-8
+    )
 
 
 def test_second_newton_step_matches_port(small_data, plan1):

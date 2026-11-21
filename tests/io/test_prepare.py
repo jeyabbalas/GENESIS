@@ -46,8 +46,10 @@ def test_merge_without_qc_matches_the_original_preprocessing(ref, table):
     # output is in reference (genomic) order regardless of input order
     assert np.all(np.diff(data.ref_index) > 0)
     back = table.set_index("ROW").loc[data.ref_index]
-    np.testing.assert_allclose(data.betahat, back["Z"] / np.sqrt(back["N"]))  # betahat = Z / sqrt(N)
-    np.testing.assert_allclose(data.varbetahat, 1.0 / back["N"])              # varbetahat = 1 / N
+    np.testing.assert_allclose(
+        data.betahat, back["Z"] / np.sqrt(back["N"])
+    )  # betahat = Z / sqrt(N)
+    np.testing.assert_allclose(data.varbetahat, 1.0 / back["N"])  # varbetahat = 1 / N
     np.testing.assert_array_equal(data.nstar, ref.nstar[data.ref_index])
     np.testing.assert_array_equal(data.ldscore, ref.ldscore[data.ref_index])
     np.testing.assert_array_equal(data.snp, back["SNP"].to_numpy())
@@ -57,17 +59,17 @@ def test_merge_without_qc_matches_the_original_preprocessing(ref, table):
 
 def test_recommended_filters_in_the_original_order(ref, table):
     df = table[["SNP", "Z", "N"]].copy()
-    df.loc[0, "Z"] = np.nan                       # unusable rows
+    df.loc[0, "Z"] = np.nan  # unusable rows
     df.loc[1, "N"] = -5
     df.loc[2, "N"] = np.inf
-    df = pd.concat([df, df.iloc[[10, 11]]])       # duplicated identifiers
-    df.loc[20:39, "N"] = 30_000                   # poorly covered SNPs
-    df.loc[50, "Z"] = 9.5                         # chi2 = 90.25 > 80
-    df.loc[51, "Z"] = -8.9                        # chi2 = 79.21 is kept
+    df = pd.concat([df, df.iloc[[10, 11]]])  # duplicated identifiers
+    df.loc[20:39, "N"] = 30_000  # poorly covered SNPs
+    df.loc[50, "Z"] = 9.5  # chi2 = 90.25 > 80
+    df.loc[51, "Z"] = -8.9  # chi2 = 79.21 is kept
     extra = pd.DataFrame({"SNP": ["rs_absent_1", "rs_absent_2"], "Z": [0.1, 0.2], "N": [1e5, 1e5]})
     df = pd.concat([df, extra], ignore_index=True)
 
-    data = prepare(df, ref)                       # qc=None -> recommended filters
+    data = prepare(df, ref)  # qc=None -> recommended filters
     steps = _steps(data)
     assert steps["missing / non-finite Z or N, or N <= 0"] == 3
     assert steps["duplicated SNP identifier (first kept)"] == 2
@@ -78,7 +80,7 @@ def test_recommended_filters_in_the_original_order(ref, table):
     kept = set(data.snp.tolist())
     assert df.loc[51, "SNP"] in kept and df.loc[50, "SNP"] not in kept
     hm3_removed = steps["outside the HapMap3-without-MHC list"]
-    assert data.K == 3000 - 3 - 20 - 1 - hm3_removed
+    assert 3000 - 3 - 20 - 1 - hm3_removed == data.K
     assert np.all(ref.hm3_no_mhc[data.ref_index])
     # the sample-size yardstick is the 90th percentile of N among usable input rows
     usable = df.drop(index=[0, 1, 2]).drop_duplicates("SNP")
@@ -97,7 +99,13 @@ def test_qc_switches(ref, table):
     df.loc[:9, "INFO"] = 0.3
     df["EAF"] = 0.3
     df.loc[10:14, "EAF"] = 0.995
-    filtered = prepare(df, ref, qc=QCConfig(max_chisq=None, hm3_no_mhc=False, n_min_fraction=None, min_info=0.8, min_maf=0.01))
+    filtered = prepare(
+        df,
+        ref,
+        qc=QCConfig(
+            max_chisq=None, hm3_no_mhc=False, n_min_fraction=None, min_info=0.8, min_maf=0.01
+        ),
+    )
     assert filtered.K == 3000 - 10 - 5
     assert QCConfig.none().hm3_no_mhc is False and QCConfig.none().max_chisq is None
 
@@ -109,8 +117,8 @@ def test_matching_by_position_and_build_detection(ref, table):
     assert data.meta["matching"]["build"] == "GRCh37"
 
     hg38 = table[table["POS38"] > 0][["CHR", "POS38", "Z", "N"]].rename(columns={"POS38": "POS"})
-    data38 = prepare(hg38, ref, qc=False)        # build auto-detected from the match counts
-    assert data38.meta["matching"]["build"] == "GRCh38" and data38.K == len(hg38)
+    data38 = prepare(hg38, ref, qc=False)  # build auto-detected from the match counts
+    assert data38.meta["matching"]["build"] == "GRCh38" and len(hg38) == data38.K
     forced = prepare(hg38, ref, qc=False, build="hg38", match_on="position")
     np.testing.assert_array_equal(forced.ref_index, data38.ref_index)
 
@@ -127,7 +135,7 @@ def test_matching_by_position_and_build_detection(ref, table):
 def test_several_inputs_mapping_to_one_reference_snp(ref, table):
     df = table[["CHR", "POS", "Z", "N"]].head(100).copy()
     df["SNP"] = [f"1:{i}:A:G" for i in range(100)]
-    dup = df.iloc[[0, 1]].copy()                  # e.g. two alleles at one position
+    dup = df.iloc[[0, 1]].copy()  # e.g. two alleles at one position
     dup["SNP"] = ["1:0:A:T", "1:1:A:T"]
     with pytest.warns(DataWarning):
         data = prepare(pd.concat([df, dup], ignore_index=True), ref, qc=False)
@@ -141,7 +149,9 @@ def test_several_inputs_mapping_to_one_reference_snp(ref, table):
 
 def test_nothing_left_is_an_error_and_low_overlap_warns(ref, table):
     with pytest.raises(DataError, match="No SNPs left"):
-        prepare(pd.DataFrame({"SNP": ["a", "b"], "Z": [1.0, 2.0], "N": [10.0, 10.0]}), ref, qc=False)
+        prepare(
+            pd.DataFrame({"SNP": ["a", "b"], "Z": [1.0, 2.0], "N": [10.0, 10.0]}), ref, qc=False
+        )
     with pytest.warns(DataWarning, match="reference SNPs"):
         prepare(table[["SNP", "Z", "N"]].head(500), ref, qc=False)
 
@@ -153,7 +163,7 @@ def test_accepts_paths_sumstats_objects_and_reference_names(ref, table, tmp_path
     b = prepare(SumStats.from_arrays(table["SNP"], table["Z"], table["N"]), ref, qc=False)
     np.testing.assert_array_equal(a.ref_index, b.ref_index)
     np.testing.assert_allclose(a.betahat, b.betahat)
-    c = prepare(str(path), ref, qc=False, n=50_000)   # reader options are forwarded
+    c = prepare(str(path), ref, qc=False, n=50_000)  # reader options are forwarded
     assert np.all(c.n == 50_000)
     assert prepare(str(path), ref, qc=False, M=1_000_000).M == 1_000_000
     with pytest.raises(InputError):

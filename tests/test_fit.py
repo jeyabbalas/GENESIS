@@ -67,7 +67,10 @@ def test_legacy_shares_the_em_path_but_has_wider_standard_errors(m2_em_only, m2_
     assert m2_legacy.n_iter == m2_em_only.n_iter
     assert np.all(m2_legacy.se > m2_em_only.se)
     assert m2_legacy.ds > m2_em_only.ds and m2_legacy.bic > m2_em_only.bic
-    assert m2_legacy.settings["sandwich_double_count"] is True and m2_legacy.settings["polish"] is False
+    assert (
+        m2_legacy.settings["sandwich_double_count"] is True
+        and m2_legacy.settings["polish"] is False
+    )
     assert m2_legacy.diagnostics["polish"] is None
     # J_legacy - J_paper = sum_k S_k S_k' is positive semi-definite
     diff = m2_legacy.J - m2_em_only.J
@@ -94,7 +97,9 @@ def test_double_count_switch_alone_reproduces_legacy_covariance(data, m2_legacy)
     risk = res.derived["sibling_risk"]
     assert risk.se == pytest.approx(0.5 * risk.estimate * res.derived["heritability"].se)
     leg = m2_legacy.derived["sibling_risk"]
-    assert leg.se == pytest.approx(np.sqrt(leg.estimate * m2_legacy.derived["heritability"].se ** 2 / 2))
+    assert leg.se == pytest.approx(
+        np.sqrt(leg.estimate * m2_legacy.derived["heritability"].se ** 2 / 2)
+    )
 
 
 def test_json_round_trip(m2, tmp_path):
@@ -121,7 +126,8 @@ def test_three_component_from_two_component_and_model_selection(data, m2):
         m3 = gg.fit(data, 3, starting=m2, threads=2, em=gg.EMConfig(max_iter=400))
     assert m3.model == "M3" and len(m3.estimates) == 5
     np.testing.assert_allclose(
-        m3.starting, [m2.estimates[0], 1 / 9, 5 * m2.estimates[1], 0.5 * m2.estimates[1], m2.estimates[2]]
+        m3.starting,
+        [m2.estimates[0], 1 / 9, 5 * m2.estimates[1], 0.5 * m2.estimates[1], m2.estimates[2]],
     )
     assert m3.estimates[2] >= m3.estimates[3]  # cluster 1 is the larger-variance cluster
     assert m3.loglik >= m2.loglik - 1e-6 * abs(m2.loglik)  # nested model fits at least as well
@@ -155,7 +161,9 @@ def test_multistart_keeps_the_best_loglik(data):
     ms = res.diagnostics["multistart"]
     assert len(ms) == 2 and sum(m["selected"] for m in ms) == 1
     assert res.diagnostics["polish"]["em_loglik"] == pytest.approx(max(m["loglik"] for m in ms))
-    explicit = gg.fit(data, 2, starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]], threads=2, variance=False)
+    explicit = gg.fit(
+        data, 2, starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]], threads=2, variance=False
+    )
     assert len(explicit.diagnostics["multistart"]) == 2
 
 
@@ -177,7 +185,12 @@ def test_prevalences_give_liability_scale(data, m2):
 
 def test_missing_neighbourhoods_warn(data):
     bare = gg.ModelData(
-        betahat=data.betahat, varbetahat=data.varbetahat, ldscore=data.ldscore, nstar=data.nstar, n=data.n, M=data.M
+        betahat=data.betahat,
+        varbetahat=data.varbetahat,
+        ldscore=data.ldscore,
+        nstar=data.nstar,
+        n=data.n,
+        M=data.M,
     )
     with pytest.warns(DataWarning, match="independent"):
         res = gg.fit(bare, 2, threads=2)
@@ -204,7 +217,9 @@ def test_progress_callback_and_bad_inputs(data):
 
 def test_derived_quantities_and_canonical_labels():
     spec = ModelSpec(3)
-    theta = np.array([0.01, 0.2, 1e-5, 4e-5, 1e-6])  # sigmasq1 < sigmasq2: labels are the wrong way round
+    theta = np.array(
+        [0.01, 0.2, 1e-5, 4e-5, 1e-6]
+    )  # sigmasq1 < sigmasq2: labels are the wrong way round
     cov = np.diag([1e-6, 1e-4, 1e-12, 4e-12, 1e-14])
     cov[1, 2] = cov[2, 1] = 3e-9
     new, (cov2,), swapped = canonicalize_m3(theta, cov)
@@ -226,5 +241,11 @@ def test_derived_quantities_and_canonical_labels():
     # numerical check of one delta-method gradient
     eps = 1e-7
     h = lambda th: derived_quantities(spec, th, None, M)["heritability"].estimate  # noqa: E731
-    grad = np.array([(h(new + eps * np.eye(5)[i] * new[i]) - h(new - eps * np.eye(5)[i] * new[i])) / (2 * eps * new[i]) for i in range(5)])
+    grad = np.array(
+        [
+            (h(new + eps * np.eye(5)[i] * new[i]) - h(new - eps * np.eye(5)[i] * new[i]))
+            / (2 * eps * new[i])
+            for i in range(5)
+        ]
+    )
     assert after["heritability"].se == pytest.approx(float(np.sqrt(grad @ cov2 @ grad)), rel=1e-6)
