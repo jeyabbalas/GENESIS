@@ -1,0 +1,49 @@
+# --- Project-specific -------------------------------------------------------
+# Copyrighted manuscript PDFs and other local reference material (not redistributable).
+reference/
+
+# Downloaded / generated reference data and run outputs (hosted as release assets, never in git).
+/refdata/
+/genesis-data/
+/results/
+/runs/
+*.genesis-cache/
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Docs -------------------------------------------------------------------
+/site/
+
+# --- R ----------------------------------------------------------------------
+.Rhistory
+.Rapp.history
+.RData
+.Rproj.user/
+
+# --- Editors / OS -----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- HPC job output ---------------------------------------------------------
+slurm-*.out
+swarm_*.o
+swarm_*.e

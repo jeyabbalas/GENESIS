@@ -1,0 +1,133 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "genesis-gwas"
+dynamic = ["version"]
+description = "GENESIS: GENetic Effect-Size distribution Inference from Summary-level data — a production-grade CPU/GPU reimplementation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-2.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Jeya Balaji Balasubramanian" }]
+keywords = [
+    "GWAS",
+    "summary statistics",
+    "effect-size distribution",
+    "polygenicity",
+    "heritability",
+    "composite likelihood",
+    "statistical genetics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+# GPU execution (and the optional torch CPU backend). On HPC systems install the
+# CUDA build that matches the cluster; see docs/biowulf.md.
+gpu = ["torch>=2.1"]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pandas-stubs",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+    "mkdocs-section-index>=0.3",
+]
+
+[project.scripts]
+genesis = "genesis_gwas.cli.main:main"
+genesis-gwas = "genesis_gwas.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/jeyabbalas/GENESIS"
+Documentation = "https://jeyabbalas.github.io/GENESIS/"
+Repository = "https://github.com/jeyabbalas/GENESIS"
+Issues = "https://github.com/jeyabbalas/GENESIS/issues"
+
+[tool.hatch.version]
+path = "src/genesis_gwas/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/genesis_gwas"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/docs", "/tools", "/README.md", "/BIOWULF.md", "/LICENSE", "/CITATION.cff", "/mkdocs.yml"]
+
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: long-running tests (deselect with -m 'not slow')",
+    "gpu: requires a CUDA device",
+    "mps: requires an Apple MPS device (device-plumbing smoke tests only)",
+    "torch: requires PyTorch",
+    "refdata: requires the full downloaded reference bundle (set GENESIS_DATA_DIR)",
+]
+filterwarnings = ["error::RuntimeWarning:genesis_gwas"]
+
+[tool.coverage.run]
+source = ["genesis_gwas"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "pragma: no cover"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "NPY", "RUF", "D"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "E741",   # mathematical single-letter names are deliberate
+    "D105", "D107", "D203", "D213",
+    "RUF002", "RUF003",  # unicode maths symbols in docstrings/comments are deliberate
+    "SIM108",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"tools/**" = ["D"]
+"docs/**" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/genesis_gwas"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
