@@ -236,14 +236,16 @@ class Engine:
             size = self.chunk_size(n_terms, shard.device)
             acc: dict[str, Any] = {}
             rows: dict[str, list[Any]] = {}
+            # Double precision: accumulate on the device (one transfer per pass).
+            # Single precision (device smoke tests only): accumulate on the host in
+            # float64, since such devices cannot hold a float64 accumulator.
+            on_device = backend.dtype == "float64"
             with torch.inference_mode():
                 for i0, i1 in self._ranges(shard.stop - shard.start, size):
                     sums, per = kernel(xp, shard.chunk(i0, i1), tb)
                     for key, val in sums.items():
-                        # Accumulate in float64 on the device (matters only for the
-                        # float32 smoke-test mode).
-                        val = val.to(torch.float64) if backend.dtype != "float64" else val
-                        acc[key] = val if key not in acc else acc[key] + val
+                        part = val if on_device else backend.to_numpy(val)
+                        acc[key] = part if key not in acc else acc[key] + part
                     for key, val in per.items():
                         rows.setdefault(key, []).append(backend.to_numpy(val))
             sums_np = {k: backend.to_numpy(v) for k, v in acc.items()}

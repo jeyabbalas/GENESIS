@@ -312,6 +312,20 @@ def read_sumstats(
     out["Z"] = zval
 
     # ------------------------------------------------------------------ N
+    # Precedence: what the caller asked for explicitly, then case/control counts found
+    # in the file (the effective sample size is the right quantity for a binary trait,
+    # whereas a bare "N" column next to them is usually the *total* sample size), then
+    # an N column.
+    explicit_n = n is not None
+    explicit_cc = n_cases is not None or n_controls is not None
+    if explicit_n and explicit_cc:
+        raise InputError("Give either n or n_cases/n_controls, not both.")
+    have_cc = ("NCASE" in cols or "NCASE" in const_cc) and ("NCONTROL" in cols or "NCONTROL" in const_cc)
+    if explicit_cc and not have_cc:
+        raise DataError(
+            "Both case and control counts are needed (columns or numbers); "
+            f"columns recognised: {cols}; present: {available}."
+        )
     with np.errstate(divide="ignore", invalid="ignore"):
         if n_from_se:
             if "SE" not in cols or "EAF" not in cols:
@@ -319,14 +333,24 @@ def read_sumstats(
             f = num("EAF")
             nval = 1.0 / (2.0 * f * (1.0 - f) * num("SE") ** 2)
             details["n_from"] = f"1 / (2 f (1 - f) SE^2) with f = {cols['EAF']}, SE = {cols['SE']}"
-        elif ("NCASE" in cols or "NCASE" in const_cc) and ("NCONTROL" in cols or "NCONTROL" in const_cc):
-            nca = num("NCASE") if "NCASE" in cols else np.full(len(raw), const_cc["NCASE"])
-            nco = num("NCONTROL") if "NCONTROL" in cols else np.full(len(raw), const_cc["NCONTROL"])
-            nval = nca * nco / (nca + nco)
-            details["n_from"] = "effective N = n_cases * n_controls / (n_cases + n_controls)"
-        elif n_const is not None:
+        elif explicit_n and n_const is not None:
             nval = np.full(len(raw), n_const)
             details["n_from"] = f"constant {n_const:g}"
+        elif explicit_n:
+            nval = num("N")
+            details["n_from"] = cols["N"]
+        elif have_cc:
+            nca = np.full(len(raw), const_cc["NCASE"]) if "NCASE" in const_cc else num("NCASE")
+            nco = np.full(len(raw), const_cc["NCONTROL"]) if "NCONTROL" in const_cc else num("NCONTROL")
+            nval = nca * nco / (nca + nco)
+            details["n_from"] = "effective N = n_cases * n_controls / (n_cases + n_controls)"
+            if "N" in cols and not explicit_cc:
+                log.warning(
+                    "Found case/control count columns (%s, %s) as well as %r: using the effective "
+                    "sample size n_cases*n_controls/(n_cases+n_controls). Pass n=%r to use that "
+                    "column as is.",
+                    cols.get("NCASE"), cols.get("NCONTROL"), cols["N"], cols["N"],
+                )
         elif "N" in cols:
             nval = num("N")
             details["n_from"] = cols["N"]

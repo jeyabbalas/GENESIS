@@ -1,0 +1,205 @@
+"""End-to-end fitting on the packaged chromosome-22 data."""
+
+from __future__ import annotations
+
+import json
+import warnings
+
+import numpy as np
+import pytest
+
+import genesis_gwas as gg
+from genesis_gwas.core.derived import canonicalize_m3, derived_quantities
+from genesis_gwas.core.spec import ModelSpec
+from genesis_gwas.exceptions import ConvergenceWarning, DataWarning, InputError
+
+
+@pytest.fixture(scope="module")
+def ref():
+    return gg.load_reference("mini_chr22")
+
+
+@pytest.fixture(scope="module")
+def data(ref):
+    return gg.prepare(ref.example_path(), ref, qc=False)
+
+
+@pytest.fixture(scope="module")
+def m2(data):
+    return gg.fit(data, 2, threads=2)
+
+
+@pytest.fixture(scope="module")
+def m2_legacy(data):
+    return gg.fit(data, 2, threads=2, legacy=True)
+
+
+def test_two_component_fit_is_sane(m2, data):
+    assert m2.model == "M2" and m2.converged and m2.status == "converged"
+    assert m2.n_snps == data.K == 13230 and m2.M == 15633
+    assert m2.param_names == ("pic", "sigmasq", "a")
+    assert 0 < m2.pic < 1 and m2.estimates[1] > 0
+    assert np.all(m2.se > 0) and np.all(np.isfinite(m2.covariance))
+    np.testing.assert_allclose(m2.covariance, m2.covariance.T, rtol=1e-9)
+    assert m2.heritability == pytest.approx(m2.M * m2.pic * m2.estimates[1])
+    assert m2.n_ssnp == pytest.approx(m2.M * m2.pic)
+    assert np.isfinite(m2.bic) and np.isfinite(m2.aic) and m2.ds > 0
+    assert m2.diagnostics["information_pd"]
+    assert m2.diagnostics["truncation"]["c0"] == m2.c0
+    assert max(abs(v) for v in m2.diagnostics["newton_distance_se"]) < 0.25
+    assert len(m2.history) == m2.n_iter
+    assert m2.settings["sandwich_double_count"] is False
+    assert m2.provenance["version"] == gg.__version__
+    text = m2.summary()
+    assert "Number of susceptibility SNPs" in text and "M2" in text
+
+
+def test_legacy_shares_estimates_but_has_wider_standard_errors(m2, m2_legacy):
+    """Same EM path, so identical estimates; the original's double-counted 'meat' inflates SEs."""
+    np.testing.assert_allclose(m2_legacy.estimates, m2.estimates, rtol=1e-9)
+    assert m2_legacy.loglik == pytest.approx(m2.loglik, rel=1e-12)
+    assert np.all(m2_legacy.se > m2.se)
+    assert m2_legacy.ds > m2.ds and m2_legacy.bic > m2.bic
+    assert m2_legacy.settings["sandwich_double_count"] is True
+    # J_legacy - J_paper = sum_k S_k S_k' is positive semi-definite
+    assert np.all(np.linalg.eigvalsh(m2_legacy.J - m2.J) > -1e-6 * np.abs(m2.J).max())
+    # explicit switch reproduces legacy SEs without the legacy EM control flow
+    # (same estimates here, so the covariance must coincide)
+
+
+def test_double_count_switch_alone_reproduces_legacy_covariance(data, m2_legacy):
+    res = gg.fit(data, 2, threads=2, sandwich_double_count=True)
+    np.testing.assert_allclose(res.covariance, m2_legacy.covariance, rtol=1e-7)
+    # ... except the sibling-risk SE, which legacy computes with the original's formula
+    risk = res.derived["sibling_risk"]
+    assert risk.se == pytest.approx(0.5 * risk.estimate * res.derived["heritability"].se)
+    leg = m2_legacy.derived["sibling_risk"]
+    assert leg.se == pytest.approx(np.sqrt(leg.estimate * m2_legacy.derived["heritability"].se ** 2 / 2))
+
+
+def test_json_round_trip(m2, tmp_path):
+    path = tmp_path / "sub" / "fit.json"
+    text = m2.to_json(path)
+    assert path.exists() and json.loads(text)["model"] == "M2"
+    back = gg.FitResult.from_json(path)
+    np.testing.assert_allclose(back.estimates, m2.estimates, rtol=0, atol=0)
+    np.testing.assert_allclose(back.covariance, m2.covariance)
+    assert back.loglik == m2.loglik and back.c0 == m2.c0 and back.status == m2.status
+    assert back.derived["heritability"].estimate == m2.derived["heritability"].estimate
+    assert len(back.history) == len(m2.history)
+    np.testing.assert_allclose(back.history[-1]["theta"], m2.history[-1]["theta"])
+    assert back.summary() == m2.summary()
+    slim = json.loads(m2.to_json(include_history=False))
+    assert "history" not in slim
+    with pytest.raises(InputError):
+        gg.FitResult.from_dict({**m2.to_dict(), "schema": 999})
+
+
+def test_three_component_from_two_component_and_model_selection(data, m2):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        m3 = gg.fit(data, 3, starting=m2, threads=2, em=gg.EMConfig(max_iter=400))
+    assert m3.model == "M3" and len(m3.estimates) == 5
+    np.testing.assert_allclose(
+        m3.starting, [m2.estimates[0], 1 / 9, 5 * m2.estimates[1], 0.5 * m2.estimates[1], m2.estimates[2]]
+    )
+    assert m3.estimates[2] >= m3.estimates[3]  # cluster 1 is the larger-variance cluster
+    assert m3.loglik >= m2.loglik - 1e-6 * abs(m2.loglik)  # nested model fits at least as well
+    cmp = gg.select_model([m2, m3])
+    assert cmp.best in (m2, m3) and cmp.criterion == "bic"
+    assert sum(r["selected"] for r in cmp.table) == 1 and min(r["delta"] for r in cmp.table) == 0
+    assert "Model comparison" in cmp.summary()
+    with pytest.raises(InputError):
+        gg.select_model([m2, m3], criterion="dic")
+    with pytest.raises(InputError):
+        gg.select_model([])
+
+
+def test_default_three_component_start_runs_an_internal_prefit(data):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        m3 = gg.fit(data, 3, threads=2, em=gg.EMConfig(max_iter=30), variance=False)
+    pre = m3.diagnostics["prefit_m2"]
+    assert len(pre) == 1 and pre[0]["status"] in ("converged", "max_iter")
+    assert m3.starting[1] == pytest.approx(1 / 9)
+    assert np.all(np.isnan(m3.se)) and m3.covariance is None and np.isnan(m3.bic)
+
+
+def test_multistart_keeps_the_best_loglik(data):
+    res = gg.fit(data, 2, starting_pic=[0.002, 0.01, 0.05], threads=2)
+    ms = res.diagnostics["multistart"]
+    assert len(ms) == 3 and sum(m["selected"] for m in ms) == 1
+    assert res.loglik == pytest.approx(max(m["loglik"] for m in ms))
+    explicit = gg.fit(data, 2, starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]], threads=2, variance=False)
+    assert len(explicit.diagnostics["multistart"]) == 2
+
+
+def test_no_stratification(data):
+    res = gg.fit(data, 2, stratification=False, threads=2)
+    assert res.a == 0.0 and res.se[2] == 0.0
+    assert np.all(res.covariance[2] == 0)
+    assert "a fixed at 0" in res.summary()
+
+
+def test_prevalences_give_liability_scale(data, m2):
+    res = gg.fit(data, 2, threads=2, population_prevalence=0.01, sample_prevalence=0.4)
+    liab = res.diagnostics["liability"]
+    assert liab["h2_observed"] == pytest.approx(res.heritability * 0.4 * 0.6)
+    assert liab["h2_liability"] > 0 and "liability scale" in res.summary()
+    with pytest.raises(InputError):
+        gg.fit(data, 2, population_prevalence=0.01)
+
+
+def test_missing_neighbourhoods_warn(data):
+    bare = gg.ModelData(
+        betahat=data.betahat, varbetahat=data.varbetahat, ldscore=data.ldscore, nstar=data.nstar, n=data.n, M=data.M
+    )
+    with pytest.warns(DataWarning, match="independent"):
+        res = gg.fit(bare, 2, threads=2)
+    assert any("independent" in w for w in res.warnings)
+
+
+def test_iteration_limit_warns(data):
+    with pytest.warns(ConvergenceWarning):
+        res = gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=3))
+    assert not res.converged and res.status == "max_iter" and res.n_iter == 3
+
+
+def test_progress_callback_and_bad_inputs(data):
+    seen = []
+    gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=5), variance=False, progress=seen.append)
+    assert [r["iter"] for r in seen] == list(range(5)) and seen[0]["stage"] == "M2"
+    with pytest.raises(InputError):
+        gg.fit(data, 4)
+    with pytest.raises(InputError):
+        gg.fit(data, 2, starting=[0.1, 0.2])
+    with pytest.raises(InputError):
+        gg.fit(data, 2, starting_pic=[])
+
+
+def test_derived_quantities_and_canonical_labels():
+    spec = ModelSpec(3)
+    theta = np.array([0.01, 0.2, 1e-5, 4e-5, 1e-6])  # sigmasq1 < sigmasq2: labels are the wrong way round
+    cov = np.diag([1e-6, 1e-4, 1e-12, 4e-12, 1e-14])
+    cov[1, 2] = cov[2, 1] = 3e-9
+    new, (cov2,), swapped = canonicalize_m3(theta, cov)
+    assert swapped
+    np.testing.assert_allclose(new, [0.01, 0.8, 4e-5, 1e-5, 1e-6])
+    assert cov2[2, 2] == cov[3, 3] and cov2[3, 3] == cov[2, 2] and cov2[1, 3] == -cov[1, 2]
+    M = 1000
+    before = derived_quantities(spec, theta, cov, M)
+    after = derived_quantities(spec, new, cov2, M)
+    # relabelling must not change label-free quantities ...
+    for key in ("n_ssnp", "heritability", "sibling_risk"):
+        assert after[key].estimate == pytest.approx(before[key].estimate)
+        assert after[key].se == pytest.approx(before[key].se)
+    # ... and swaps the cluster-specific ones
+    assert after["n_ssnp_cluster1"].estimate == pytest.approx(before["n_ssnp_cluster2"].estimate)
+    assert after["heritability_cluster1"].se == pytest.approx(before["heritability_cluster2"].se)
+    same, _, swapped = canonicalize_m3(new, cov2)
+    assert not swapped and np.array_equal(same, new)
+    # numerical check of one delta-method gradient
+    eps = 1e-7
+    h = lambda th: derived_quantities(spec, th, None, M)["heritability"].estimate  # noqa: E731
+    grad = np.array([(h(new + eps * np.eye(5)[i] * new[i]) - h(new - eps * np.eye(5)[i] * new[i])) / (2 * eps * new[i]) for i in range(5)])
+    assert after["heritability"].se == pytest.approx(float(np.sqrt(grad @ cov2 @ grad)), rel=1e-6)
