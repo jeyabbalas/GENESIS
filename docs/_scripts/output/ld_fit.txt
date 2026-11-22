@@ -1,0 +1,2 @@
+$ genesis fit height_giant2010.sumstats.tsv.gz --reference refs/eur_rebuilt --model 2 \
+      --keep-mhc --out results/height_rebuilt --quiet

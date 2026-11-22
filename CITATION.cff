@@ -1,0 +1,58 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the article that introduced the method
+  (given below as the preferred citation) and state the version of genesis-gwas used.
+title: "genesis-gwas: GENetic Effect-Size distribution Inference from Summary-level data"
+abstract: >-
+  A Python implementation, for CPUs and GPUs, of the GENESIS method for estimating the
+  effect-size distribution of common variants from GWAS summary statistics and an LD
+  reference panel, and for projecting the yield of future studies. It is a
+  re-implementation of the GENESIS R package by Yan Zhang, Guanghao Qi, Ju-Hyun Park
+  and Nilanjan Chatterjee.
+type: software
+authors:
+  - given-names: Jeya Balaji
+    family-names: Balasubramanian
+version: 0.1.0
+date-released: "2026-11-21"
+license: GPL-2.0-or-later
+repository-code: "https://github.com/jeyabbalas/GENESIS"
+url: "https://jeyabbalas.github.io/GENESIS/"
+keywords:
+  - GWAS
+  - summary statistics
+  - effect-size distribution
+  - polygenicity
+  - heritability
+  - composite likelihood
+  - statistical genetics
+preferred-citation:
+  type: article
+  title: >-
+    Estimation of complex effect-size distributions using summary-level statistics
+    from genome-wide association studies across 32 complex traits
+  authors:
+    - given-names: Yan
+      family-names: Zhang
+    - given-names: Guanghao
+      family-names: Qi
+    - given-names: Ju-Hyun
+      family-names: Park
+    - given-names: Nilanjan
+      family-names: Chatterjee
+  journal: Nature Genetics
+  volume: 50
+  issue: 9
+  start: 1318
+  end: 1326
+  year: 2018
+  doi: 10.1038/s41588-018-0193-x
+references:
+  - type: software
+    title: "GENESIS: GENetic Effect-Size distribution Inference from Summary-level data (R package)"
+    authors:
+      - given-names: Yan
+        family-names: Zhang
+    repository-code: "https://github.com/yandorazhang/GENESIS"
+    license: GPL-2.0-or-later
+    notes: Original implementation, of which this software is a derivative work.

@@ -1,0 +1,2 @@
+$ python write_snplist.py panel.snplist
+1,070,777 SNP identifiers written to panel.snplist

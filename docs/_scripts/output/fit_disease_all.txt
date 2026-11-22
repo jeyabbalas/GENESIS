@@ -1,0 +1,2 @@
+$ genesis fit sim_disease.sumstats.tsv.gz --out results/sim_disease_all --max-chisq inf \
+      --population-prevalence 0.10 --sample-prevalence 0.5455 --quiet

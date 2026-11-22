@@ -1,0 +1,22 @@
+$ grep -E '^(model|M3)' results/height.estimates.tsv | cut -f1-3,5,6
+model	selected	quantity	estimate	se
+M3	1	pic	0.009579236693	0.00151527
+M3	1	p1	0.09506458765	0.0176984
+M3	1	sigmasq1	0.0001415831949	1.23162e-05
+M3	1	sigmasq2	2.023950042e-05	3.56892e-06
+M3	1	a	1.534862936e-06	1.21644e-07
+M3	1	n_ssnp	10257.22633	1622.52
+M3	1	heritability	0.3259232507	0.0152972
+M3	1	sibling_risk	1.176991522	0.00900233
+M3	1	n_ssnp_cluster1	975.0989914	177.713
+M3	1	n_ssnp_cluster2	9282.127337	1558.31
+M3	1	heritability_cluster1	0.1380576306	0.0175235
+M3	1	heritability_cluster2	0.1878656201	0.0169728
+M3	1	loglik	3950983.13882	nan
+M3	1	bic	-7900568.37724	nan
+M3	1	aic	-7901757.65334	nan
+M3	1	ds	104.312154458	nan
+M3	1	n_snps	941684	nan
+M3	1	n_iter	51	nan
+M3	1	c0	14	nan
+M3	1	converged	1	nan

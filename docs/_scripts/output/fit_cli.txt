@@ -1,0 +1,73 @@
+$ genesis fit height_giant2010.sumstats.tsv.gz --out results/height --qq --posterior \
+      --project 250000,500000,1000000
+19:41:41  genesis-gwas 0.1.0
+19:41:41  Command: genesis fit height_giant2010.sumstats.tsv.gz --out results/height --qq --posterior --project 250000,500000,1000000
+19:41:42  Reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
+19:41:43  Read 1,037,172 rows from height_giant2010.sumstats.tsv.gz (Z from Z; N from N)
+19:41:44  QC: not in the LD reference (eur_1kg_hm3, matched on rsid)     removed     95,488,    941,684 remain
+19:41:44  Prepared 941,684 SNPs for analysis (of 1,037,172 read)
+19:41:44  Fitting the two-component model ...
+19:41:44  Compute: numpy on CPU, 18 thread(s); 941,684 SNPs
+19:41:44    M2           iter     0  logLik 3948056.4010  c0 10  [1.01486e-02  3.43591e-05  6.61204e-07]
+19:41:50  
+GENESIS fit: M2 (two-component model)
+  GWAS markers analysed (K)     : 941,684
+  Reference-panel SNPs (M)      : 1,070,777
+  Mean sample size              : 132,149.5
+  Optimisation                  : converged after 50 EM iteration(s), c0 = 10; 6 Newton step(s)
+  Composite log-likelihood      : 3,950,388.0029
+  Model selection               : BIC = -7,899,524.616   AIC = -7,900,589.247   d_s = 93.379
+
+  Parameter           Estimate              SE
+  pic             4.839258e-03      5.1501e-04
+  sigmasq         5.793067e-05      4.9039e-06
+  a               1.879024e-06      1.2640e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                   5181.8       551.5
+  Total heritability                                             0.30018     0.01407
+  Sibling relative risk                                           1.1619    0.008176
+
+  Convergence check             : estimate is within 1.74e-09 SE of the likelihood stationary point
+
+19:41:50  Fitting the three-component model ...
+19:41:50  Compute: numpy on CPU, 18 thread(s); 941,684 SNPs
+19:41:51    M3           iter     0  logLik 3949201.0821  c0 10  [4.96237e-03  1.10248e-01  2.03510e-04  3.30486e-05  2.20128e-06]
+19:42:40  Truncated prior mass 3.31e-06 exceeds 1e-06 at c0 = 10: re-solving with c0 = 14
+19:42:42    M3[c0=14]    iter     0  logLik 3950982.8490  c0 14  [9.34298e-03  9.57554e-02  1.42443e-04  2.08621e-05  1.54658e-06]
+19:42:54  
+GENESIS fit: M3 (three-component model)
+  GWAS markers analysed (K)     : 941,684
+  Reference-panel SNPs (M)      : 1,070,777
+  Mean sample size              : 132,149.5
+  Optimisation                  : converged after 51 EM iteration(s), c0 = 14; 3 Newton step(s)
+  Composite log-likelihood      : 3,950,983.1388
+  Model selection               : BIC = -7,900,568.377   AIC = -7,901,757.653   d_s = 104.312
+
+  Parameter           Estimate              SE
+  pic             9.579237e-03      1.5153e-03
+  p1              9.506459e-02      1.7698e-02
+  sigmasq1        1.415832e-04      1.2316e-05
+  sigmasq2        2.023950e-05      3.5689e-06
+  a               1.534863e-06      1.2164e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                    10257        1623
+  Total heritability                                             0.32592      0.0153
+  Sibling relative risk                                            1.177    0.009002
+  Susceptibility SNPs in cluster 1 (larger variance)               975.1       177.7
+  Susceptibility SNPs in cluster 2 (smaller variance)             9282.1        1558
+  Heritability explained by cluster 1 (larger variance)          0.13806     0.01752
+  Heritability explained by cluster 2 (smaller variance)         0.18787     0.01697
+
+  Convergence check             : estimate is within 7.94e-08 SE of the likelihood stationary point
+
+19:42:54  
+Model comparison by BIC (lower is better)
+  Model               logLik       d_s               AIC               BIC       delta
+  M2           3,950,388.003    93.379    -7,900,589.247    -7,899,524.616    1043.761
+  M3           3,950,983.139   104.312    -7,901,757.653    -7,900,568.377       0.000  <- selected
+19:42:54  Wrote results/height.projection.tsv
+19:43:16  Wrote results/height.posterior.tsv.gz
+19:43:42  Wrote results/height.qq.png and results/height.qq.tsv.gz (lambda_obs = 1.538, lambda_fit = 1.540; 100 simulations)
+19:43:42  Selected model: M3. Results written to results/height.*  (120.4 s)

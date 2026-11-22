@@ -1,0 +1,4 @@
+$ genesis predict results/sim_disease.best.json --n 52000,250000 --k-fold 2,3
+n	threshold	alpha	auc	pop_frac_at_2x_risk	case_frac_at_2x_risk	pop_frac_at_3x_risk	case_frac_at_3x_risk
+52000	optimum	4.5025294e-05	0.61064267	0.02601055	0.061103871	0.0015218517	0.0051453778
+250000	optimum	9.6255623e-05	0.65152962	0.06252834	0.16277423	0.011601717	0.042780056

@@ -1,0 +1,5 @@
+$ python match_position.py
+matched on : position
+build used : GRCh38
+matches per build tried: {'GRCh37': 9, 'GRCh38': 13200}
+markers    : 13,200 of 13,230

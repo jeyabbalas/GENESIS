@@ -1,0 +1,9 @@
+$ python simulate_disease.py
+      SNP  CHR     BP    EAF      BETA       SE        P  N_CASES  N_CONTROLS
+rs3094315    1 752566 0.7621 -0.006095 0.007422 0.411561   110147       91789
+rs3131972    1 752721 0.2991 -0.000252 0.006735 0.970122   115679       96399
+rs3131969    1 754182 0.4813 -0.002180 0.006228 0.726349   113607       94673
+rs1048488    1 760912 0.4751 -0.001357 0.006263 0.828475   112446       93705
+
+rows: 1,070,777   susceptibility SNPs: 4,283   heritability (log-odds scale): 0.3683
+mean chi-square: 1.358   lambda_GC: 1.157

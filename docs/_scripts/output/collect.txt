@@ -1,0 +1,8 @@
+$ python collect_estimates.py
+3 fits, 102 rows -> results/consortium/all_estimates.tsv
+
+                  model  markers  sSNPs  sSNPs_se     h2  h2_se  converged
+trait    ancestry                                                         
+overall  EUR         M2    15633     76        46  0.016  0.005          1
+subtypeA EUR         M2    15620    179        69  0.043  0.009          1
+subtypeB EUR         M2    15633     92        79  0.030  0.012          1

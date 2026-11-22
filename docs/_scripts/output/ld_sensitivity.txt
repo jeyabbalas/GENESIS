@@ -1,0 +1,10 @@
+$ python ld_sensitivity.py
+window  500 kb, r2 >= 0.05: mean N*  67.7, mean LD score 18.36  ->  sSNPs   4334 (477),  h2 0.294 (0.014)
+window  500 kb, r2 >= 0.1 : mean N*  45.3, mean LD score 16.80  ->  sSNPs   5414 (565),  h2 0.307 (0.014)
+window  500 kb, r2 >= 0.2 : mean N*  27.9, mean LD score 14.37  ->  sSNPs   7011 (680),  h2 0.336 (0.015)
+window 1000 kb, r2 >= 0.05: mean N*  70.6, mean LD score 18.73  ->  sSNPs   4045 (452),  h2 0.286 (0.014)
+window 1000 kb, r2 >= 0.1 : mean N*  46.4, mean LD score 17.06  ->  sSNPs   5182 (551),  h2 0.300 (0.014)
+window 1000 kb, r2 >= 0.2 : mean N*  28.4, mean LD score 14.53  ->  sSNPs   6821 (673),  h2 0.331 (0.015)
+window 2000 kb, r2 >= 0.05: mean N*  71.4, mean LD score 18.83  ->  sSNPs   3973 (447),  h2 0.283 (0.014)
+window 2000 kb, r2 >= 0.1 : mean N*  46.7, mean LD score 17.12  ->  sSNPs   5137 (549),  h2 0.299 (0.014)
+window 2000 kb, r2 >= 0.2 : mean N*  28.5, mean LD score 14.56  ->  sSNPs   6799 (672),  h2 0.331 (0.015)

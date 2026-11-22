@@ -1,0 +1,6 @@
+$ cat genesis.swarm
+# Swarm file written by `genesis swarm`; one fit per line.
+# Threads are taken from $SLURM_CPUS_PER_TASK automatically.
+genesis fit /data/jdoe/project/gwas/overall.EUR.tsv.gz --out /data/jdoe/project/results/consortium/overall.EUR --device cpu --data-dir /data/jdoe/genesis-ref --reference mini_chr22 --model both
+genesis fit /data/jdoe/project/gwas/subtypeA.EUR.tsv.gz --out /data/jdoe/project/results/consortium/subtypeA.EUR --device cpu --data-dir /data/jdoe/genesis-ref --reference mini_chr22 --model both
+genesis fit /data/jdoe/project/gwas/subtypeB.EUR.tsv.gz --out /data/jdoe/project/results/consortium/subtypeB.EUR --device cpu --data-dir /data/jdoe/genesis-ref --reference mini_chr22 --model both

@@ -1,0 +1,79 @@
+$ genesis fit sim_disease.sumstats.tsv.gz --out results/sim_disease \
+      --population-prevalence 0.10 --sample-prevalence 0.5455
+19:50:05  genesis-gwas 0.1.0
+19:50:05  Command: genesis fit sim_disease.sumstats.tsv.gz --out results/sim_disease --population-prevalence 0.10 --sample-prevalence 0.5455
+19:50:06  Reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
+19:50:07  Read 1,070,777 rows from sim_disease.sumstats.tsv.gz (Z from BETA / SE; N from effective N = n_cases * n_controls / (n_cases + n_controls))
+19:50:09  QC: outside the HapMap3-without-MHC list                       removed      1,879,  1,068,898 remain
+19:50:09  QC: chi-square > 80                                            removed        267,  1,068,631 remain
+19:50:09  Prepared 1,068,631 SNPs for analysis (of 1,070,777 read)
+19:50:09  Fitting the two-component model ...
+19:50:09  Compute: numpy on CPU, 18 thread(s); 1,068,631 SNPs
+19:50:09    M2           iter     0  logLik 4151945.7174  c0 10  [9.95006e-03  3.97275e-05  -6.67908e-07]
+19:50:14    M2           iter    50  logLik 4154649.8824  c0 10  [6.18112e-03  6.61607e-05  -8.35131e-07]
+19:50:16    M2           iter   100  logLik 4156241.8425  c0 10  [3.58582e-03  1.01481e-04  -1.54787e-08]
+19:50:20  
+GENESIS fit: M2 (two-component model)
+  GWAS markers analysed (K)     : 1,068,631
+  Reference-panel SNPs (M)      : 1,070,777
+  Mean sample size              : 51,816.3
+  Optimisation                  : converged after 150 EM iteration(s), c0 = 10; 5 Newton step(s)
+  Composite log-likelihood      : 4,157,240.0664
+  Model selection               : BIC = -8,313,155.384   AIC = -8,314,267.576   d_s = 106.278
+
+  Parameter           Estimate              SE
+  pic             1.471252e-03      2.1910e-04
+  sigmasq         1.969599e-04      2.2597e-05
+  a               1.347599e-06      2.0240e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                   1575.4       234.6
+  Total heritability                                             0.31029     0.02145
+  Sibling relative risk                                           1.1678     0.01252
+
+  Heritability on other scales (binary trait)
+    observed scale   : 0.076929 (SE 0.005317)
+    liability scale  : 0.081602 (SE 0.00564)
+
+  Convergence check             : estimate is within 9.63e-08 SE of the likelihood stationary point
+
+19:50:20  Fitting the three-component model ...
+19:50:20  Compute: numpy on CPU, 18 thread(s); 1,068,631 SNPs
+19:50:21    M3           iter     0  logLik 4156814.8385  c0 10  [1.52534e-03  1.09696e-01  5.44670e-04  1.13570e-04  1.68033e-06]
+19:50:53  
+GENESIS fit: M3 (three-component model)
+  GWAS markers analysed (K)     : 1,068,631
+  Reference-panel SNPs (M)      : 1,070,777
+  Mean sample size              : 51,816.3
+  Optimisation                  : converged after 50 EM iteration(s), c0 = 10; 6 Newton step(s)
+  Composite log-likelihood      : 4,157,837.0558
+  Model selection               : BIC = -8,314,204.768   AIC = -8,315,438.354   d_s = 117.879
+
+  Parameter           Estimate              SE
+  pic             3.335757e-03      6.8510e-04
+  p1              8.996544e-02      1.9952e-02
+  sigmasq1        4.668770e-04      4.3810e-05
+  sigmasq2        6.433226e-05      1.3638e-05
+  a               6.323468e-07      2.1189e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                   3571.9       733.6
+  Total heritability                                             0.35914     0.02468
+  Sibling relative risk                                           1.1967     0.01477
+  Susceptibility SNPs in cluster 1 (larger variance)              321.34       70.45
+  Susceptibility SNPs in cluster 2 (smaller variance)             3250.5       704.3
+  Heritability explained by cluster 1 (larger variance)          0.15003     0.02371
+  Heritability explained by cluster 2 (smaller variance)         0.20911     0.02424
+
+  Heritability on other scales (binary trait)
+    observed scale   : 0.089042 (SE 0.006118)
+    liability scale  : 0.09445 (SE 0.00649)
+
+  Convergence check             : estimate is within 1.41e-07 SE of the likelihood stationary point
+
+19:50:53  
+Model comparison by BIC (lower is better)
+  Model               logLik       d_s               AIC               BIC       delta
+  M2           4,157,240.066   106.278    -8,314,267.576    -8,313,155.384    1049.383
+  M3           4,157,837.056   117.879    -8,315,438.354    -8,314,204.768       0.000  <- selected
+19:50:53  Selected model: M3. Results written to results/sim_disease.*  (47.7 s)

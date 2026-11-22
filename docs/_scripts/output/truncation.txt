@@ -1,0 +1,23 @@
+$ python truncation.py
+chromosome 22 of the height GWAS (13,230 markers), M2
+  c0 = 10  discarded prior mass 3.4e-04   pic 2.8919e-02 (SE 3.1e-03)   h2 0.0054 (SE 0.0010)
+  c0 = 12  discarded prior mass 2.2e-04   pic 3.4794e-02 (SE 4.0e-03)   h2 0.0055 (SE 0.0010)
+  c0 = 15  discarded prior mass 1.2e-04   pic 4.3530e-02 (SE 5.5e-03)   h2 0.0056 (SE 0.0010)
+  c0 = 20  discarded prior mass 4.4e-05   pic 5.7797e-02 (SE 9.8e-03)   h2 0.0057 (SE 0.0011)
+  c0 = 25  discarded prior mass 1.5e-05   pic 7.1225e-02 (SE 1.9e-02)   h2 0.0057 (SE 0.0011)
+  c0 = 30  discarded prior mass 3.3e-06   pic 8.2355e-02 (SE 4.4e-02)   h2 0.0058 (SE 0.0011)
+  c0 = 40  discarded prior mass 3.3e-09   pic 8.8254e-02 (SE 1.0e-01)   h2 0.0058 (SE 0.0011)
+
+full height GWAS (941,684 markers), M2
+  c0 = 10  discarded prior mass 4.6e-08   pic 4.8393e-03 (SE 5.2e-04)   h2 0.3002 (SE 0.0141)
+  c0 = 12  discarded prior mass 2.3e-09   pic 4.8397e-03 (SE 5.2e-04)   h2 0.3002 (SE 0.0141)
+  c0 = 14  discarded prior mass 9.3e-11   pic 4.8397e-03 (SE 5.2e-04)   h2 0.3002 (SE 0.0141)
+  c0 = 16  discarded prior mass 3.0e-12   pic 4.8397e-03 (SE 5.2e-04)   h2 0.3002 (SE 0.0141)
+  c0 = 20  discarded prior mass 4.1e-15   pic 4.8397e-03 (SE 5.2e-04)   h2 0.3002 (SE 0.0141)
+
+full height GWAS, M3
+  c0 = 10  discarded prior mass 3.3e-06   pic 9.3425e-03 (SE 1.2e-03)   h2 0.3252 (SE 0.0149)
+  c0 = 12  discarded prior mass 5.5e-07   pic 9.5364e-03 (SE 1.4e-03)   h2 0.3258 (SE 0.0152)
+  c0 = 14  discarded prior mass 6.8e-08   pic 9.5792e-03 (SE 1.5e-03)   h2 0.3259 (SE 0.0153)
+  c0 = 16  discarded prior mass 6.6e-09   pic 9.5857e-03 (SE 1.5e-03)   h2 0.3259 (SE 0.0153)
+  c0 = 20  discarded prior mass 3.7e-11   pic 9.5865e-03 (SE 1.5e-03)   h2 0.3259 (SE 0.0153)

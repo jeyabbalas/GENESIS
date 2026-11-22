@@ -1,0 +1,4 @@
+$ python make_toy_gwas.py
+gwas/overall.EUR.tsv.gz: 60,000 cases, 60,000 controls; simulated truth: 156 susceptibility SNPs, heritability 0.028
+gwas/subtypeA.EUR.tsv.gz: 40,000 cases, 60,000 controls; simulated truth: 156 susceptibility SNPs, heritability 0.034
+gwas/subtypeB.EUR.tsv.gz: 15,000 cases, 60,000 controls; simulated truth: 78 susceptibility SNPs, heritability 0.035

@@ -1,0 +1,36 @@
+{
+  "machine": "one Apple M5 Pro laptop (18 cores); 12 threads for both programs; no GPU",
+  "data": "GIANT height GWAS, 941,684 markers",
+  "notes": [
+    "Wall-clock seconds of the complete command (reading data, fitting, standard errors, writing results); no QQ plot unless stated.",
+    "Original: R/C++ package with 12 OpenMP threads, run through tools/upstream_oracle (wall_seconds_total in tests/fixtures/upstream/height_full_m{2,3}.json).",
+    "This package, --legacy: the original algorithm (117 and 849 EM iterations), NumPy backend.",
+    "This package, default: `genesis fit --model 2` and `genesis fit --model 3` (the latter includes its internal two-component fit), measured on a lightly loaded machine.",
+    "Complete analysis: `genesis fit --model both --qq --posterior --project ...`, measured while the machine was busy with other jobs.",
+    "GPU timings were not measured."
+  ],
+  "groups": [
+    {
+      "title": "Two-component model",
+      "bars": [
+        {"label": "original software", "seconds": 90.0, "kind": "original"},
+        {"label": "this package, original algorithm (--legacy)", "seconds": 9.6, "kind": "legacy"},
+        {"label": "this package, default", "seconds": 5.1, "kind": "default"}
+      ]
+    },
+    {
+      "title": "Three-component model",
+      "bars": [
+        {"label": "original software", "seconds": 1349.0, "kind": "original"},
+        {"label": "this package, original algorithm (--legacy)", "seconds": 405.0, "kind": "legacy"},
+        {"label": "this package, default", "seconds": 33.7, "kind": "default"}
+      ]
+    },
+    {
+      "title": "Both models, QQ plot, posterior table and projections",
+      "bars": [
+        {"label": "this package, default", "seconds": 63.0, "kind": "default"}
+      ]
+    }
+  ]
+}

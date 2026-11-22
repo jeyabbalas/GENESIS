@@ -1,0 +1,14 @@
+$ python compare_estimates.py results/consortium/overall.EUR.estimates.tsv \
+      results/consortium-legacy/overall.EUR.estimates.tsv
+A = results/consortium/overall.EUR.estimates.tsv
+B = results/consortium-legacy/overall.EUR.estimates.tsv
+
+              estimate_A        se_A  estimate_B        se_B      B/A - 1
+quantity                                                                 
+pic           0.00487114  0.00296781  0.00488831  0.00305479   0.00352516
+sigmasq      0.000215494 0.000104429  0.00021494    0.000107  -0.00256792
+a            2.88036e-06 2.61138e-06 2.86547e-06 2.74807e-06  -0.00517076
+n_ssnp           76.1506     46.3958      76.419     47.7555   0.00352516
+heritability     0.01641  0.00546146   0.0164255  0.00557001  0.000948181
+loglik           55479.1                 55479.1             -6.82599e-09
+n_iter                50                     338                     5.76

@@ -1,0 +1,5 @@
+$ python check_effective_n.py
+median N implied by SE and allele frequency :     51,817
+median cases x controls / total (GENESIS)  :     51,817   ratio to the implied N: 1.00
+median METAL / PGC effective N             :    207,268   ratio to the implied N: 4.00
+median cases + controls                    :    208,995   ratio to the implied N: 4.03

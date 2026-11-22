@@ -1,0 +1,3 @@
+$ genesis plot density M2=results/height.M2.json M3=results/height.M3.json --out \
+      results/height.density.png
+19:49:51  Wrote results/height.density.png

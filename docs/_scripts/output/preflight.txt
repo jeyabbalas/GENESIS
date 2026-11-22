@@ -1,0 +1,7 @@
+$ python preflight.py mini_chr22 gwas/*.EUR.tsv.gz
+reference: mini_chr22 v1.0 (EUR, GRCh37, M = 15,633; window 1000 kb, r2 >= 0.1)
+
+file                      rows    kept  chi2>80  median N  mean chi2  lambda_GC   Z from; N from
+overall.EUR.tsv.gz      15,633  15,633        0    30,000      1.512      1.237   BETA / SE; effective N = n_cases * n_controls / (n_cases + n_controls)
+subtypeA.EUR.tsv.gz     15,633  15,620       13    24,000      1.848      1.262   BETA / SE; effective N = n_cases * n_controls / (n_cases + n_controls)
+subtypeB.EUR.tsv.gz     15,633  15,633        0    12,000      1.373      1.221   BETA / SE; effective N = n_cases * n_controls / (n_cases + n_controls)

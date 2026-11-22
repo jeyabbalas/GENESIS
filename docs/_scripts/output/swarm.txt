@@ -1,0 +1,6 @@
+$ genesis swarm gwas/*.EUR.tsv.gz --outdir results/consortium --swarmfile genesis.swarm \
+      --cpus 8 --mem-gb 8 --time 01:00:00 -- --reference mini_chr22 --model both
+20:12:47  Wrote genesis.swarm with 3 fit(s).
+20:12:47  Dry run (submits nothing):  swarm --devel -g 8 -t 8 --time 01:00:00 --logdir /data/jdoe/project/results/consortium/logs /data/jdoe/project/genesis.swarm
+20:12:47  Submit it from the Biowulf login node with:
+swarm -g 8 -t 8 --time 01:00:00 --logdir /data/jdoe/project/results/consortium/logs /data/jdoe/project/genesis.swarm

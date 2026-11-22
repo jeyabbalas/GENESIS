@@ -1,0 +1,13 @@
+$ ls results | grep '^height\.'
+height.M2.json
+height.M3.json
+height.best.json
+height.density.png
+height.discoveries.png
+height.estimates.tsv
+height.log
+height.posterior.tsv.gz
+height.projection.tsv
+height.qq.png
+height.qq.tsv.gz
+height.summary.txt

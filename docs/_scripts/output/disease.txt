@@ -1,0 +1,25 @@
+$ python disease.py
+                             truth             default QC (M3)   no chi-square filter (M3)
+n_ssnp                        4283                  3572 (734)                  3180 (577)
+n_ssnp_cluster1                428                321.3 (70.4)                159.4 (36.6)
+heritability                0.3683             0.3591 (0.0247)             0.3909 (0.0276)
+heritability_cluster1       0.2142               0.15 (0.0237)             0.1444 (0.0226)
+heritability_cluster2       0.1542             0.2091 (0.0242)             0.2465 (0.0223)
+markers analysed                                     1,068,631                   1,068,898
+
+expected number of SNPs with an absolute effect (log odds ratio per SD of genotype) above x
+x = 0.005                     2007                        1995                        1890
+x = 0.01                       719                         897                         928
+x = 0.02                       165                         155                         162
+x = 0.03                        77                          54                          54
+
+heritability, log-odds scale : 0.359 (SE 0.025)
+heritability, observed scale : 0.089 (SE 0.006)
+heritability, liability scale: 0.094 (SE 0.006)
+sibling relative risk        : 1.197 (SE 0.015)
+
+ effective n     AUC    people at >= 2x average risk: % of population, % of future cases
+      52,000   0.618                                        3.27                 7.82
+     100,000   0.638                                        5.05                12.69
+     250,000   0.654                                        6.46                16.93
+   1,000,000   0.662                                        7.11                19.05

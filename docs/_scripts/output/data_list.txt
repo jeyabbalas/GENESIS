@@ -1,0 +1,30 @@
+$ genesis data list --data-dir refdata-demo
+Data directory: refdata-demo
+
+eur_1kg_hm3 v1.0: 1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05
+  installed 4/22 files (62 of 504 MB) in refdata-demo/eur_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
+   [x] examples/height_giant2010.sumstats.tsv.gz            12.6 MB
+   [ ] ld/w1000kb_r0.05.npz                                 27.0 MB
+   [x] ld/w1000kb_r0.1.npz                                  21.4 MB
+   [ ] ld/w1000kb_r0.2.npz                                  17.2 MB
+   [ ] ld/w2000kb_r0.05.npz                                 27.3 MB
+   [ ] ld/w2000kb_r0.1.npz                                  21.5 MB
+   [ ] ld/w2000kb_r0.2.npz                                  17.2 MB
+   [ ] ld/w500kb_r0.05.npz                                  26.3 MB
+   [ ] ld/w500kb_r0.1.npz                                   21.2 MB
+   [x] ld/w500kb_r0.2.npz                                   17.1 MB
+   [ ] nullz/nullz_000-009.npy                              21.4 MB
+   [ ] nullz/nullz_010-019.npy                              21.4 MB
+   [ ] nullz/nullz_020-029.npy                              21.4 MB
+   [ ] nullz/nullz_030-039.npy                              21.4 MB
+   [ ] nullz/nullz_040-049.npy                              21.4 MB
+   [ ] nullz/nullz_050-059.npy                              21.4 MB
+   [ ] nullz/nullz_060-069.npy                              21.4 MB
+   [ ] nullz/nullz_070-079.npy                              21.4 MB
+   [ ] nullz/nullz_080-089.npy                              21.4 MB
+   [ ] nullz/nullz_090-099.npy                              21.4 MB
+   [ ] pairld/w1000kb_r0.1.npz                              69.5 MB
+   [x] snps.npz                                             11.1 MB
+
+Packaged (no download needed): mini_chr22

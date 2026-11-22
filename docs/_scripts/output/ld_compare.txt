@@ -1,0 +1,14 @@
+$ python ld_compare.py refs/eur_rebuilt
+eur_rebuilt v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
+same SNPs in the same order: True 
+
+window   r2 >=   SNPs with identical N*   neighbourhoods identical   largest LD-score difference
+ 500 kb   0.05    1,070,777 of 1,070,777                       True                       9.1e-13
+ 500 kb   0.1     1,070,777 of 1,070,777                       True                       9.1e-13
+ 500 kb   0.2     1,070,777 of 1,070,777                       True                       8.0e-13
+1000 kb   0.05    1,070,777 of 1,070,777                       True                       1.0e-06
+1000 kb   0.1     1,070,777 of 1,070,777                       True                       1.0e-06
+1000 kb   0.2     1,070,777 of 1,070,777                       True                       1.2e-12
+2000 kb   0.05    1,070,777 of 1,070,777                       True                       1.0e-06
+2000 kb   0.1     1,070,777 of 1,070,777                       True                       1.0e-06
+2000 kb   0.2     1,070,777 of 1,070,777                       True                       1.2e-12

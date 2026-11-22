@@ -1,0 +1,6 @@
+$ genesis fit height_giant2010.sumstats.tsv.gz --out results/height_nopolish --model 2 \
+      --no-polish --quiet && grep -E 'Optimisation|pic  |Convergence check' \
+      results/height_nopolish.summary.txt
+  Optimisation                  : converged after 327 EM iteration(s), c0 = 10
+  pic             4.907466e-03      5.2664e-04
+  Convergence check             : estimate is within 0.14 SE of the likelihood stationary point

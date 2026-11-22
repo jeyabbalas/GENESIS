@@ -1,0 +1,2 @@
+$ genesis fit gwas/overall.EUR.tsv.gz --reference mini_chr22 --model 2 --out \
+      results/consortium-legacy/overall.EUR --legacy --quiet

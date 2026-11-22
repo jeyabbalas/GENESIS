@@ -1,0 +1,31 @@
+$ python fit_height.py
+GENESIS fit: M3 (three-component model)
+  GWAS markers analysed (K)     : 941,684
+  Reference-panel SNPs (M)      : 1,070,777
+  Mean sample size              : 132,149.5
+  Optimisation                  : converged after 51 EM iteration(s), c0 = 14; 3 Newton step(s)
+  Composite log-likelihood      : 3,950,983.1388
+  Model selection               : BIC = -7,900,568.377   AIC = -7,901,757.653   d_s = 104.312
+
+  Parameter           Estimate              SE
+  pic             9.579237e-03      1.5153e-03
+  p1              9.506459e-02      1.7698e-02
+  sigmasq1        1.415832e-04      1.2316e-05
+  sigmasq2        2.023950e-05      3.5689e-06
+  a               1.534863e-06      1.2164e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                    10257        1623
+  Total heritability                                             0.32592      0.0153
+  Sibling relative risk                                            1.177    0.009002
+  Susceptibility SNPs in cluster 1 (larger variance)               975.1       177.7
+  Susceptibility SNPs in cluster 2 (smaller variance)             9282.1        1558
+  Heritability explained by cluster 1 (larger variance)          0.13806     0.01752
+  Heritability explained by cluster 2 (smaller variance)         0.18787     0.01697
+
+  Convergence check             : estimate is within 7.94e-08 SE of the likelihood stationary point
+
+Model comparison by BIC (lower is better)
+  Model               logLik       d_s               AIC               BIC       delta
+  M2           3,950,388.003    93.379    -7,900,589.247    -7,899,524.616    1043.761
+  M3           3,950,983.139   104.312    -7,901,757.653    -7,900,568.377       0.000  <- selected

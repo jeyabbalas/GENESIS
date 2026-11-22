@@ -1,0 +1,29 @@
+$ genesis ld build --bfile 1000G_EUR_Phase3_plink/1000G.EUR.QC.{chrom} --snps \
+      panel.snplist --window-kb 500,1000,2000 --r2 0.05,0.1,0.2 --round-r2 6 --name \
+      eur_rebuilt --population EUR --genome-build GRCh37 --out refs/eur_rebuilt
+19:52:23  chr1     88,107 SNPs, 6,098,401 tagging pairs (w500kb_r0.05), 2.8 s
+19:52:28  chr2     89,785 SNPs, 6,551,809 tagging pairs (w500kb_r0.05), 4.1 s
+19:52:31  chr3     74,921 SNPs, 5,371,251 tagging pairs (w500kb_r0.05), 2.2 s
+19:52:34  chr4     67,235 SNPs, 4,542,485 tagging pairs (w500kb_r0.05), 2.4 s
+19:52:38  chr5     67,755 SNPs, 4,793,109 tagging pairs (w500kb_r0.05), 2.6 s
+19:52:41  chr6     67,706 SNPs, 4,915,618 tagging pairs (w500kb_r0.05), 2.6 s
+19:52:44  chr7     59,708 SNPs, 4,008,848 tagging pairs (w500kb_r0.05), 2.2 s
+19:52:47  chr8     58,513 SNPs, 4,463,653 tagging pairs (w500kb_r0.05), 2.4 s
+19:52:49  chr9     50,100 SNPs, 3,315,148 tagging pairs (w500kb_r0.05), 1.9 s
+19:52:52  chr10    57,482 SNPs, 3,952,520 tagging pairs (w500kb_r0.05), 2.2 s
+19:52:55  chr11    55,248 SNPs, 3,956,790 tagging pairs (w500kb_r0.05), 2.1 s
+19:52:58  chr12    52,524 SNPs, 3,574,512 tagging pairs (w500kb_r0.05), 2.0 s
+19:53:00  chr13    40,898 SNPs, 2,647,766 tagging pairs (w500kb_r0.05), 1.5 s
+19:53:01  chr14    35,372 SNPs, 2,325,986 tagging pairs (w500kb_r0.05), 1.3 s
+19:53:03  chr15    32,152 SNPs, 1,984,638 tagging pairs (w500kb_r0.05), 0.9 s
+19:53:04  chr16    32,800 SNPs, 1,853,418 tagging pairs (w500kb_r0.05), 1.0 s
+19:53:05  chr17    29,139 SNPs, 1,679,643 tagging pairs (w500kb_r0.05), 0.8 s
+19:53:06  chr18    31,965 SNPs, 1,922,731 tagging pairs (w500kb_r0.05), 0.9 s
+19:53:07  chr19    20,167 SNPs, 942,407 tagging pairs (w500kb_r0.05), 0.5 s
+19:53:08  chr20    27,946 SNPs, 1,653,570 tagging pairs (w500kb_r0.05), 0.8 s
+19:53:09  chr21    15,621 SNPs, 869,841 tagging pairs (w500kb_r0.05), 0.4 s
+19:53:09  chr22    15,633 SNPs, 878,041 tagging pairs (w500kb_r0.05), 0.5 s
+19:53:09  build_reference: variants_seen                       9,997,231
+19:53:09  build_reference: not_in_snp_list                     8,926,454
+19:53:36  Wrote reference bundle refs/eur_rebuilt: 1,070,777 SNPs, 489 samples, 9 configuration(s), 77.1 s
+19:53:36  Reference bundle written to refs/eur_rebuilt; use it with --reference refs/eur_rebuilt

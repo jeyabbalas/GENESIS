@@ -1,0 +1,5 @@
+$ genesis data fetch --dest refdata-demo
+19:41:33  Downloading <download URL>/eur_1kg_hm3-1.0-snps.npz (11.1 MB)
+19:41:33  Downloading <download URL>/eur_1kg_hm3-1.0-ld-w1000kb_r0.1.npz (21.4 MB)
+19:41:33  Reference eur_1kg_hm3 is ready in refdata-demo/eur_1kg_hm3/1.0
+refdata-demo/eur_1kg_hm3/1.0

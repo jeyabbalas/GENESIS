@@ -1,0 +1,9 @@
+$ python predict.py
+  GWAS size   best threshold   R2 at best threshold   R2 with P < 5e-8 only
+    132,000          1.8e-03                  0.160                   0.095
+    250,000          2.5e-03                  0.220                   0.141
+    500,000          2.5e-03                  0.269                   0.203
+  1,000,000          2.1e-03                  0.299                   0.260
+  2,000,000          1.6e-03                  0.314                   0.296
+
+heritability (the ceiling for R2): 0.326

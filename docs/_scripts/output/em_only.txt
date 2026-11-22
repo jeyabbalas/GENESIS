@@ -1,0 +1,9 @@
+$ python em_only.py
+em_only.py:16: NumericalWarning: Truncation still matters at the ceiling c0 = 10: on average 3.3e-06 of the prior mass is discarded (tolerance 1e-06). Estimates, pi_c in particular, may be limited by the truncation; check their sensitivity with a larger c0_max.
+  fast = gg.fit(data, n_components, starting=start, em=fixed_c0)                      # default optimiser
+em_only.py:17: NumericalWarning: Truncation still matters at the ceiling c0 = 10: on average 3.3e-06 of the prior mass is discarded (tolerance 1e-06). Estimates, pi_c in particular, may be limited by the truncation; check their sensitivity with a larger c0_max.
+  slow = gg.fit(data, n_components, starting=start, em=fixed_c0, accelerate=False)   # EM to its stopping rule
+M2: the EM alone stops after 327 iterations, 0.14 standard errors from the maximum (largest for a; pic -0.13 SE), log-likelihood 0.35 below it.
+    default: 50 EM iterations + 6 Newton steps; largest difference between the two final estimates: 2e-09 SE
+M3: the EM alone stops after 853 iterations, 0.46 standard errors from the maximum (largest for sigmasq2; pic +0.36 SE), log-likelihood 2.13 below it.
+    default: 50 EM iterations + 8 Newton steps; largest difference between the two final estimates: 3e-10 SE

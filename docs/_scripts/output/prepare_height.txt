@@ -1,0 +1,16 @@
+$ python prepare_height.py
+eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
+
+QC step                                                          removed   remaining
+missing / non-finite Z or N, or N <= 0                                 0   1,037,172
+duplicated SNP identifier (first kept)                                 0   1,037,172
+N < 0.67 x 0.9-quantile of N (89,669)                                  0   1,037,172
+not in the LD reference (eur_1kg_hm3, matched on rsid)            95,488     941,684
+several input SNPs map to the same reference SNP (first kept)          0     941,684
+outside the HapMap3-without-MHC list                                   0     941,684
+chi-square > 80                                                        0     941,684
+
+markers for analysis : 941,684
+reference SNPs (M)   : 1,070,777
+mean chi-square      : 1.891
+N* per marker        : median 37, max 710

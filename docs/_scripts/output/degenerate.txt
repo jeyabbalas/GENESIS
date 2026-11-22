@@ -1,0 +1,28 @@
+$ python degenerate.py
+M2: status converged, c0 = 20
+   estimates: pic = 0.0578, sigmasq = 6.33e-06, a = 2.66e-07
+   standard errors: 0.0098, 1.4e-06, 5.5e-07
+   heritability: 0.0057 (SE 0.0011)
+   - Truncation still matters at the ceiling c0 = 20: on average 4.4e-05 of the prior mass is
+     discarded (tolerance 1e-06). Estimates, pi_c in particular, may be limited by the
+     truncation; check their sensitivity with a larger c0_max.
+M3: status not_identified, c0 = 10
+   estimates: pic = 0.0363, p1 = 0.213, sigmasq1 = 9.78e-06, sigmasq2 = 9.78e-06, a = 4.4e-07
+   standard errors: 1, 26, 0.00024, 0.00025, 1.5e-05
+   heritability: 0.0055 (SE 0.0152)
+   - Newton polishing was skipped because the observed information is not positive definite at
+     the EM estimate; the EM estimate is reported.
+   - The three-component model is not identified for these data: the two variance components
+     have merged (sigmasq1 = sigmasq2 to within 1%). p1 and the cluster-specific quantities are
+     not meaningful and the standard errors are unreliable; use the two-component model.
+   - The observed information matrix is not positive definite at the estimate; standard errors
+     and the model-selection criteria are unreliable. This usually means the EM algorithm has
+     not converged or the model is over-parameterised for these data (for the three-component
+     model: the two variance components have merged, or p1 sits on a bound).
+
+M3 not identified: True | parameters on a bound: []
+
+Model comparison by BIC (lower is better)
+  Model               logLik       d_s               AIC               BIC       delta
+  M2              55,825.941    25.831      -111,600.220      -111,305.981       0.000  <- selected
+  M3              55,819.199       n/a               n/a               n/a         n/a  (not identified)

@@ -1,0 +1,14 @@
+$ python compare_estimates.py results/height.estimates.tsv \
+      results/height_rebuilt.estimates.tsv
+A = results/height.estimates.tsv
+B = results/height_rebuilt.estimates.tsv
+
+              estimate_A        se_A  estimate_B        se_B  B/A - 1
+quantity                                                             
+pic           0.00483926 0.000515006  0.00483926 0.000515006        0
+sigmasq      5.79307e-05 4.90394e-06 5.79307e-05 4.90394e-06        0
+a            1.87902e-06 1.26398e-07 1.87902e-06 1.26398e-07        0
+n_ssnp           5181.77     551.457     5181.77     551.457        0
+heritability    0.300183   0.0140732    0.300183   0.0140732        0
+loglik       3.95039e+06             3.95039e+06                    0
+n_iter                50                      50                    0

@@ -1,0 +1,6 @@
+$ python ld_compare.py refs/eur_unrounded
+eur_unrounded v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
+same SNPs in the same order: True 
+
+window   r2 >=   SNPs with identical N*   neighbourhoods identical   largest LD-score difference
+1000 kb   0.1     1,070,767 of 1,070,777                      False                       2.9e-01

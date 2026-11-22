@@ -1,0 +1,27 @@
+$ python interpret.py
+M3 parameters
+  pic       9.5792e-03   (SE 1.5e-03)
+  p1        9.5065e-02   (SE 1.8e-02)
+  sigmasq1  1.4158e-04   (SE 1.2e-05)
+  sigmasq2  2.0240e-05   (SE 3.6e-06)
+  a         1.5349e-06   (SE 1.2e-07)
+
+M3 derived quantities
+  n_ssnp                      10257   (SE 1623)
+  heritability              0.32592   (SE 0.0153)
+  sibling_risk                1.177   (SE 0.009002)
+  n_ssnp_cluster1             975.1   (SE 177.7)
+  n_ssnp_cluster2            9282.1   (SE 1558)
+  heritability_cluster1     0.13806   (SE 0.01752)
+  heritability_cluster2     0.18787   (SE 0.01697)
+
+SD of effects in cluster 1 and 2: [0.0119 0.0045]  shares: [0.0951 0.9049]
+
+|effect| range        M2 count   M3 count
+  0      - 0.0025        1334       4075
+  0.0025 - 0.005         1199       3051
+  0.005  - 0.01          1670       2496
+  0.01   - 0.02           934        544
+  0.02   - inf             45         91
+
+SE, original convention / default: [1.021 1.034 1.048 1.03  1.029]

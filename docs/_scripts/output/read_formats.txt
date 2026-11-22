@@ -1,0 +1,41 @@
+$ python read_formats.py
+--- Z statistic and sample size
+    Z from: Z
+    N from: N
+SNP    Z        N
+rs1  2.5 100000.0
+rs2 -1.2  98000.0
+rs3  0.3 100000.0 
+
+--- effect and standard error; one sample size for all SNPs
+    Z from: beta / se
+    N from: constant 100000
+SNP    Z        N
+rs1  2.5 100000.0
+rs2 -1.2 100000.0
+rs3  0.3 100000.0 
+
+--- odds ratio, its standard error, cases and controls
+    Z from: log(OR) / SE
+    N from: effective N = n_cases * n_controls / (n_cases + n_controls)
+SNP       Z          N
+rs1  2.4985 24000.0000
+rs2 -1.1971 23265.3061
+rs3  0.2996 24000.0000 
+
+--- P-value with a signed effect; METAL-style effective N (4x the GENESIS convention)
+    Z from: sign(BETA) * |Phi^-1(P/2)|
+    N from: Neff x 0.25
+SNP    Z        N
+rs1  2.5 24000.00
+rs2 -1.2 23265.25
+rs3  0.3 24000.00 
+
+--- per-SNP effective N from the standard error and the allele frequency
+    Z from: BETA / SE
+    N from: 1 / (2 f (1 - f) SE^2) with f = EAF, SE = SE
+SNP    Z          N
+rs1  2.5 14999.4944
+rs2 -1.2 14999.5613
+rs3  0.3 15000.7500 
+

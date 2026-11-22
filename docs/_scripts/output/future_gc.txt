@@ -1,0 +1,6 @@
+$ python future_gc.py
+observed lambda_GC of this GWAS (mean n = 132,149): 1.538
+predicted lambda_GC at n =   132,000: 1.519
+predicted lambda_GC at n =   250,000: 1.866
+predicted lambda_GC at n =   500,000: 2.540
+predicted lambda_GC at n = 1,000,000: 3.834

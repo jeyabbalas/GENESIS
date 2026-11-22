@@ -1,0 +1,9 @@
+$ bash genesis.swarm > results/consortium.local.log 2>&1; ls results/consortium | grep -c \
+      . ; ls results/consortium | grep overall
+19
+overall.EUR.M2.json
+overall.EUR.M3.json
+overall.EUR.best.json
+overall.EUR.estimates.tsv
+overall.EUR.log
+overall.EUR.summary.txt

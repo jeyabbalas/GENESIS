@@ -1,0 +1,5 @@
+$ genesis data fetch --dest refdata-demo --components w500kb_r0.2,examples
+19:41:34  Downloading <download URL>/eur_1kg_hm3-1.0-ld-w500kb_r0.2.npz (17.1 MB)
+19:41:34  Downloading <download URL>/eur_1kg_hm3-1.0-examples-height_giant2010.sumstats.tsv.gz (12.6 MB)
+19:41:34  Reference eur_1kg_hm3 is ready in refdata-demo/eur_1kg_hm3/1.0
+refdata-demo/eur_1kg_hm3/1.0

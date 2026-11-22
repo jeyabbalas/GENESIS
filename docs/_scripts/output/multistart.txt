@@ -1,0 +1,9 @@
+$ python multistart.py
+starting pic   after 50 EM iterations     after Newton's method     log-likelihood
+               pic        sigmasq         pic        sigmasq
+0.001          0.003409   7.5062e-05      0.004839   5.7931e-05      3950388.0029
+0.005          0.005018   5.6373e-05      0.004839   5.7931e-05      3950388.0029
+0.01           0.007915   3.9664e-05      0.004839   5.7931e-05      3950388.0029
+0.05           0.025633   1.4531e-05      0.004839   5.7931e-05      3950388.0029
+
+runs recorded in diagnostics['multistart']: 4 | log-likelihoods: [3950388.0029]

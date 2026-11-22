@@ -1,0 +1,17 @@
+$ python posterior.py
+      snp        z  p_null  post_mean  post_sd  expected_count
+rs6058154 -8.93927     0.0   -0.02211  0.00296         4.34953
+rs1885114  8.78295     0.0    0.02166  0.00296         4.32148
+ rs761827  8.89902     0.0    0.02195  0.00295         3.41543
+rs6060140 -8.68583     0.0   -0.02154  0.00298         4.23006
+rs6060003  8.70403     0.0    0.02153  0.00296         3.93470
+...
+rs3766192  1.95432 0.71482  0.00080 0.00177 0.31961
+rs3813199 -1.98379 0.69656 -0.00092 0.00190 0.34087
+rs4648633  1.95489 0.79720  0.00045 0.00131 0.22060
+
+markers with P < 5e-8    :   3,179
+markers with lfdr < 0.01 :   8,203
+markers with lfdr < 0.05 :  15,405
+markers with lfdr < 0.5  : 180,147
+expected number of false positives among the markers with lfdr < 0.05: 220 of 15,405

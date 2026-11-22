@@ -1,0 +1,9 @@
+$ python prepare_messy.py
+QC step                                                          removed   remaining
+missing / non-finite Z or N, or N <= 0                                 8      13,252
+duplicated SNP identifier (first kept)                                10      13,242
+N < 0.67 x 0.9-quantile of N (89,665)                                300      12,942
+not in the LD reference (mini_chr22, matched on rsid)                 20      12,922
+several input SNPs map to the same reference SNP (first kept)          0      12,922
+outside the HapMap3-without-MHC list                                   0      12,922
+chi-square > 80                                                        4      12,918
