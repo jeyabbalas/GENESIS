@@ -1,6 +1,7 @@
 # --- Project-specific -------------------------------------------------------
 # Copyrighted manuscript PDFs and other local reference material (not redistributable).
-reference/
+# Anchored to the repository root: docs/reference/ is part of the documentation.
+/reference/
 
 # Downloaded / generated reference data and run outputs (hosted as release assets, never in git).
 /refdata/
