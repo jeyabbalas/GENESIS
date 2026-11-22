@@ -98,8 +98,9 @@ class FitResult:
         Truncation diagnostics, the remaining Newton distance to the stationary point
         (in standard-error units), LD-score-regression summary, multi-start table, ...
     history
-        Per-iteration trace of the selected EM run (iteration, log-likelihoods,
-        parameters, ``c0``).
+        Per-iteration trace of the EM iterations of the selected run (iteration,
+        log-likelihoods, parameters, ``c0``); when the truncation level was raised, the
+        trace continues across the levels. ``n_iter`` is its length.
     settings, provenance, timings
         Algorithm settings, software/hardware provenance and wall-clock timings.
     warnings
@@ -299,7 +300,7 @@ class FitResult:
             f"  GWAS markers analysed (K)     : {self.n_snps:,}",
             f"  Reference-panel SNPs (M)      : {self.M:,}",
             f"  Mean sample size              : {self.mean_n:,.1f}",
-            f"  EM                            : {self.status} after {self.n_iter:,} iteration(s), c0 = {self.c0}"
+            f"  Optimisation                  : {self.status} after {self.n_iter:,} EM iteration(s), c0 = {self.c0}"
             + self._polish_note(),
             f"  Composite log-likelihood      : {self.loglik:,.4f}",
         ]
@@ -343,7 +344,7 @@ class FitResult:
         if not pol:
             return ""
         if pol.get("status") == "converged":
-            return f"; {pol.get('n_steps', 0)} Newton polishing step(s)"
+            return f"; {pol.get('n_steps', 0)} Newton step(s)"
         return f"; Newton polishing: {pol.get('status')}"
 
     def __str__(self) -> str:

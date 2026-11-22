@@ -215,13 +215,15 @@ def test_m3_proportions_respect_bounds(medium_data):
     assert np.all(np.diff(p1[-10:]) == 0)
 
 
-def test_c0_is_raised_only_up_to_c0_max(small_data, plan1):
+def test_default_em_keeps_the_truncation_level_fixed(small_data, plan1):
+    """The original raises c0 inside the EM (path dependent); the default policy never does."""
+    start = np.array([0.05, 2e-5, 8e-7])
     with Engine(small_data, plan1) as eng:
         lik = CompositeLikelihood(ModelSpec(2), eng, 3)
-        res = run_em(lik, np.array([0.05, 2e-5, 8e-7]), EMConfig(c0=3, c0_max=5, max_iter=300))
-    assert 3 <= res.c0 <= 5
-    c0s = [h["c0"] for h in res.history]
-    assert c0s == sorted(c0s)
+        res = run_em(lik, start, EMConfig(c0=3, c0_max=20, max_iter=300))
+        legacy = run_em(lik, start, EMConfig(c0=3, c0_max=20, max_iter=300, legacy=True))
+    assert res.c0 == 3 and {h["c0"] for h in res.history} == {3}
+    assert legacy.c0 > 3  # same data and start: the original's rule has moved it
 
 
 def test_infeasible_start_is_rejected(small_data, plan1):

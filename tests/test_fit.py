@@ -24,9 +24,15 @@ def data(ref):
     return gg.prepare(ref.example_path(), ref, qc=False)
 
 
+# One chromosome cannot pin down pi_c, so on these data the truncation rule would raise c0
+# to its ceiling. Most tests below are about other things and fix the truncation level at
+# the original's 10; the rule itself is tested separately.
+FIXED = gg.EMConfig(c0=10, c0_max=10)
+
+
 @pytest.fixture(scope="module")
 def m2(data):
-    return gg.fit(data, 2, threads=2)
+    return gg.fit(data, 2, threads=2, em=FIXED)
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +43,13 @@ def m2_legacy(data):
 @pytest.fixture(scope="module")
 def m2_em_only(data):
     """Default policy but without Newton polishing: the point where the EM stops."""
-    return gg.fit(data, 2, threads=2, polish=False)
+    return gg.fit(data, 2, threads=2, polish=False, em=FIXED)
+
+
+@pytest.fixture(scope="module")
+def m2_slow(data):
+    """EM to the original's stopping rule, then Newton (no acceleration)."""
+    return gg.fit(data, 2, threads=2, accelerate=False, em=FIXED)
 
 
 def test_two_component_fit_is_sane(m2, data):
@@ -77,17 +89,47 @@ def test_legacy_shares_the_em_path_but_has_wider_standard_errors(m2_em_only, m2_
     assert np.all(np.linalg.eigvalsh(diff) > -1e-6 * np.abs(diff).max())
 
 
-def test_polishing_reaches_the_stationary_point(m2, m2_em_only):
-    pol = m2.diagnostics["polish"]
+def test_polishing_reaches_the_stationary_point(m2_slow, m2_em_only):
+    """EM to the original's stopping rule, then Newton (``accelerate=False``)."""
+    slow = m2_slow
+    pol = slow.diagnostics["polish"]
     assert pol["status"] == "converged" and 1 <= pol["n_steps"] <= 10 and pol["fixed"] == []
+    assert pol["accelerated"] is False and slow.diagnostics["em_status"] == "converged"
     np.testing.assert_allclose(pol["em_estimates"], m2_em_only.estimates, rtol=1e-12)
-    assert pol["loglik_gain"] >= 0 and m2.loglik >= m2_em_only.loglik
+    assert slow.n_iter == m2_em_only.n_iter
+    assert pol["loglik_gain"] >= 0 and slow.loglik >= m2_em_only.loglik
     # the EM stopped a small but non-zero fraction of an SE short; the polished fit is at the optimum
     before = np.max(np.abs(m2_em_only.diagnostics["newton_distance_se"]))
-    after = np.max(np.abs(m2.diagnostics["newton_distance_se"]))
+    after = np.max(np.abs(slow.diagnostics["newton_distance_se"]))
     assert 1e-4 < before < 0.25 and after < 1e-5
-    assert np.max(np.abs(m2.estimates - m2_em_only.estimates) / m2.se) < 0.25
-    assert "Newton polishing step" in m2.summary()
+    assert np.max(np.abs(slow.estimates - m2_em_only.estimates) / slow.se) < 0.25
+    assert "Newton step" in slow.summary()
+
+
+def test_accelerated_default_gives_the_same_estimate_with_far_fewer_iterations(data, m2, m2_slow):
+    """Default: a 50-iteration EM warm-up, then Newton — same stationary point."""
+    slow = m2_slow
+    assert m2.settings["accelerate"] is True and m2.n_iter == 50 < slow.n_iter
+    assert m2.converged and m2.status == "converged" and m2.diagnostics["em_status"] == "newton"
+    assert m2.diagnostics["polish"]["status"] == "converged"
+    assert np.max(np.abs(m2.estimates - slow.estimates) / slow.se) < 1e-4
+    assert m2.loglik == pytest.approx(slow.loglik, rel=1e-8)
+    np.testing.assert_allclose(m2.se, slow.se, rtol=1e-4)
+    assert [h["iter"] for h in m2.history] == list(range(50))
+    # a longer warm-up changes nothing but the iteration count
+    other = gg.fit(data, 2, threads=2, newton_after=120, variance=False, em=FIXED)
+    assert other.n_iter == 120 and np.max(np.abs(other.estimates - m2.estimates) / m2.se) < 1e-4
+
+
+def test_newton_attempt_that_declines_falls_back_to_more_em(data):
+    """With a one-iteration warm-up the first Newton attempts may decline; the fit still converges."""
+    res = gg.fit(data, 2, threads=2, newton_after=1, starting=[0.3, 1e-6, 0.0], em=FIXED)
+    ref_fit = gg.fit(
+        data, 2, threads=2, accelerate=False, starting=[0.3, 1e-6, 0.0], variance=False, em=FIXED
+    )
+    assert res.converged
+    assert np.max(np.abs(res.estimates - ref_fit.estimates) / res.se) < 1e-3
+    assert [h["iter"] for h in res.history] == list(range(res.n_iter))
 
 
 def test_both_sandwich_conventions_are_reported(m2_em_only, m2_legacy):
@@ -104,7 +146,7 @@ def test_both_sandwich_conventions_are_reported(m2_em_only, m2_legacy):
 
 
 def test_double_count_switch_alone_reproduces_legacy_covariance(data, m2_legacy):
-    res = gg.fit(data, 2, threads=2, sandwich_double_count=True, polish=False)
+    res = gg.fit(data, 2, threads=2, sandwich_double_count=True, polish=False, em=FIXED)
     np.testing.assert_allclose(res.covariance, m2_legacy.covariance, rtol=1e-7)
     # ... except the sibling-risk SE, which legacy computes with the original's formula
     risk = res.derived["sibling_risk"]
@@ -136,7 +178,7 @@ def test_json_round_trip(m2, tmp_path):
 def test_three_component_from_two_component_and_model_selection(data, m2):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        m3 = gg.fit(data, 3, starting=m2, threads=2, em=gg.EMConfig(max_iter=400))
+        m3 = gg.fit(data, 3, starting=m2, threads=2, em=FIXED)
     assert m3.model == "M3" and len(m3.estimates) == 5
     np.testing.assert_allclose(
         m3.starting,
@@ -162,33 +204,41 @@ def test_three_component_from_two_component_and_model_selection(data, m2):
 def test_default_three_component_start_runs_an_internal_prefit(data):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        m3 = gg.fit(data, 3, threads=2, em=gg.EMConfig(max_iter=30), variance=False)
+        m3 = gg.fit(data, 3, threads=2, em=gg.EMConfig(max_iter=30, c0_max=10), variance=False)
     pre = m3.diagnostics["prefit_m2"]
-    assert len(pre) == 1 and pre[0]["status"] in ("converged", "max_iter")
+    assert len(pre) == 1 and pre[0]["status"] in ("converged", "max_iter", "newton")
+    np.testing.assert_allclose(m3.starting[0], pre[0]["estimates"][0])
     assert m3.starting[1] == pytest.approx(1 / 9)
     assert np.all(np.isnan(m3.se)) and m3.covariance is None and np.isnan(m3.bic)
 
 
 def test_multistart_keeps_the_best_loglik(data):
-    res = gg.fit(data, 2, starting_pic=[0.02, 0.05], threads=2)
+    res = gg.fit(data, 2, starting_pic=[0.02, 0.05], threads=2, em=FIXED)
     ms = res.diagnostics["multistart"]
     assert len(ms) == 2 and sum(m["selected"] for m in ms) == 1
-    assert res.diagnostics["polish"]["em_loglik"] == pytest.approx(max(m["loglik"] for m in ms))
+    assert res.loglik == pytest.approx(max(m["loglik"] for m in ms))
+    # with Newton's method both starts reach the same optimum
+    np.testing.assert_allclose(ms[0]["estimates"], ms[1]["estimates"], rtol=1e-4)
     explicit = gg.fit(
-        data, 2, starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]], threads=2, variance=False
+        data,
+        2,
+        starting=[[0.01, 1e-5, 1e-6], [0.02, 2e-5, 0.0]],
+        threads=2,
+        variance=False,
+        em=FIXED,
     )
     assert len(explicit.diagnostics["multistart"]) == 2
 
 
 def test_no_stratification(data):
-    res = gg.fit(data, 2, stratification=False, threads=2)
+    res = gg.fit(data, 2, stratification=False, threads=2, em=FIXED)
     assert res.a == 0.0 and res.se[2] == 0.0
     assert np.all(res.covariance[2] == 0)
     assert "a fixed at 0" in res.summary()
 
 
 def test_prevalences_give_liability_scale(data, m2):
-    res = gg.fit(data, 2, threads=2, population_prevalence=0.01, sample_prevalence=0.4)
+    res = gg.fit(data, 2, threads=2, population_prevalence=0.01, sample_prevalence=0.4, em=FIXED)
     liab = res.diagnostics["liability"]
     assert liab["h2_observed"] == pytest.approx(res.heritability * 0.4 * 0.6)
     assert liab["h2_liability"] > 0 and "liability scale" in res.summary()
@@ -206,19 +256,54 @@ def test_missing_neighbourhoods_warn(data):
         M=data.M,
     )
     with pytest.warns(DataWarning, match="independent"):
-        res = gg.fit(bare, 2, threads=2)
+        res = gg.fit(bare, 2, threads=2, em=FIXED)
     assert any("independent" in w for w in res.warnings)
 
 
 def test_iteration_limit_warns(data):
     with pytest.warns(ConvergenceWarning):
-        res = gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=3))
+        res = gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=3, c0_max=10), polish=False)
     assert not res.converged and res.status == "max_iter" and res.n_iter == 3
+    # with Newton's method the same three EM iterations are enough to converge
+    ok = gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=3, c0_max=10))
+    assert ok.converged and ok.status == "converged"
+    assert ok.diagnostics["em_status"] in ("max_iter", "newton")
+
+
+def test_truncation_rule_is_path_independent(data):
+    """c0 is raised when the truncated prior mass at the solution is too large, whatever the path."""
+    with pytest.warns(gg.exceptions.NumericalWarning, match="Truncation still matters"):
+        a = gg.fit(data, 2, threads=2)
+    with pytest.warns(gg.exceptions.NumericalWarning):
+        b = gg.fit(data, 2, threads=2, starting=[0.3, 1e-6, 0.0], newton_after=1, variance=False)
+    path = a.diagnostics["c0_path"]
+    assert [p["c0"] for p in path] == sorted(p["c0"] for p in path) and path[0]["c0"] == 10
+    assert a.c0 == b.c0 == path[-1]["c0"] == 20  # the ceiling: one chromosome cannot identify pi_c
+    assert all(p["mean_tail"] > 1e-6 for p in path)
+    assert np.max(np.abs(a.estimates - b.estimates) / a.se) < 1e-3
+    assert a.pic > path[0]["estimates"][0]  # truncation had been holding pi_c down
+    assert len(a.history) == a.n_iter and {h["c0"] for h in a.history} == {p["c0"] for p in path}
+    # heritability, unlike pi_c, barely depends on the truncation level
+    fixed = gg.fit(data, 2, threads=2, em=FIXED)
+    assert fixed.c0 == 10 and len(fixed.diagnostics["c0_path"]) == 1
+    assert fixed.heritability == pytest.approx(a.heritability, rel=0.1)
+    # a looser tolerance stops earlier
+    loose = gg.fit(data, 2, threads=2, em=gg.EMConfig(tail_tol=1e-3), variance=False)
+    assert loose.c0 == 10
 
 
 def test_progress_callback_and_bad_inputs(data):
     seen = []
-    gg.fit(data, 2, threads=2, em=gg.EMConfig(max_iter=5), variance=False, progress=seen.append)
+    with pytest.warns(ConvergenceWarning):
+        gg.fit(
+            data,
+            2,
+            threads=2,
+            em=gg.EMConfig(max_iter=5, c0_max=10),
+            variance=False,
+            polish=False,
+            progress=seen.append,
+        )
     assert [r["iter"] for r in seen] == list(range(5)) and seen[0]["stage"] == "M2"
     with pytest.raises(InputError):
         gg.fit(data, 4)

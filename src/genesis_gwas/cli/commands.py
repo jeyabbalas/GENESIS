@@ -107,6 +107,7 @@ def _em_config(args: argparse.Namespace) -> Any:
     base = EMConfig(
         c0=args.c0,
         c0_max=max(args.c0_max, args.c0),
+        tail_tol=args.tail_tol,
         max_iter=args.max_iter,
         newton_steps=args.newton_steps,
         legacy=args.legacy,
@@ -218,6 +219,8 @@ def cmd_fit(args: argparse.Namespace) -> int:
         em=_em_config(args),
         variance=not args.no_variance,
         polish=False if args.no_polish else None,
+        accelerate=not args.no_accelerate,
+        newton_after=args.newton_after,
         bic_gamma=args.bic_gamma,
         sandwich_double_count=True if args.sandwich_double_count else None,
         population_prevalence=args.population_prevalence,

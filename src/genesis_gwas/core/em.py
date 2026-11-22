@@ -26,10 +26,12 @@ Two control policies
       monotone and cannot diverge;
     * proportion bounds are imposed by projection (the exact constrained M-step);
     * with ``stratification=False`` the Newton step is taken in :math:`\sigma^2` alone;
-    * the truncation level is raised (up to ``c0_max``) when the reported, renormalised
-      log-likelihood decreases although :math:`\tilde\ell` increased — the signature of
-      truncation at ``c0`` distorting the prior — and the iteration then *continues*
-      to convergence.
+    * the truncation level ``c0`` is held fixed during a run. (The original raises it
+      whenever the reported log-likelihood decreases, which makes the final ``c0`` —
+      and with it the estimate — depend on the path taken from the starting values.
+      :func:`genesis_gwas.fit` instead re-solves at a higher ``c0`` when the truncated
+      prior mass *at the solution* exceeds ``tail_tol``, a rule that depends only on
+      the data.)
 
     Whenever none of the safeguards is triggered, the iterates coincide with those of
     the original software to floating-point accuracy.
@@ -65,7 +67,14 @@ class EMConfig:
         Initial truncation level: at most ``c0`` tagged susceptibility SNPs per
         component are summed over.
     c0_max
-        Ceiling for the adaptive increase of ``c0`` (set equal to ``c0`` to disable it).
+        Ceiling for the adaptive increase of ``c0`` by :func:`genesis_gwas.fit` (set
+        equal to ``c0`` for a fixed truncation level). 20 is the ceiling of the original
+        software's own rule; ``legacy`` mode always uses that rule and that ceiling.
+    tail_tol
+        Tolerated truncation: :func:`genesis_gwas.fit` raises ``c0`` (and re-solves from
+        the current estimate) until the prior mass discarded by the truncation,
+        averaged over markers, is below this value at the estimate, or ``c0_max`` is
+        reached.
     max_iter
         Maximum number of EM iterations.
     newton_steps
@@ -85,6 +94,7 @@ class EMConfig:
 
     c0: int = 10
     c0_max: int = 20
+    tail_tol: float = 1e-6
     max_iter: int = 3000
     newton_steps: int = 2
     tol_pic: float = 1e-6
@@ -106,7 +116,7 @@ class EMConfig:
             raise InputError("max_iter must be >= 1")
         if self.newton_steps < 1:
             raise InputError("newton_steps must be >= 1")
-        for name in ("tol_pic", "tol_p1", "tol_sigmasq", "tol_a", "tol_loglik"):
+        for name in ("tol_pic", "tol_p1", "tol_sigmasq", "tol_a", "tol_loglik", "tail_tol"):
             if not getattr(self, name) > 0:
                 raise InputError(f"{name} must be > 0")
         for name in ("pic_bounds", "p1_bounds"):
@@ -341,7 +351,6 @@ def _run_safeguarded(
         n_iter = it + 1
         proposal, n_modified = _mstep(lik, theta, res, cfg)
 
-        raise_c0 = prev_loglik is not None and res.loglik < prev_loglik and lik.c0 < cfg.c0_max
         delta = np.abs(proposal - theta)
         rel_ll = (
             abs((res.loglik - prev_loglik) / prev_loglik)
@@ -349,8 +358,6 @@ def _run_safeguarded(
             else np.inf
         )
         converged = bool(np.all(delta < tol) and rel_ll < cfg.tol_loglik)
-        if raise_c0:
-            lik.set_c0(lik.c0 + 1)
 
         new_theta, new_res, nb, ok = advance(theta, res, proposal)
         total_backtracks += nb

@@ -169,7 +169,17 @@ def _add_model_options(p: argparse.ArgumentParser) -> None:
     g.add_argument("--no-stratification", action="store_true", help="fix the inflation term a = 0")
     g.add_argument("--c0", type=int, default=10, help="truncation level of latent counts [10]")
     g.add_argument(
-        "--c0-max", type=int, default=20, help="ceiling for the adaptive increase of c0 [20]"
+        "--c0-max",
+        type=int,
+        default=20,
+        help="ceiling for raising c0 when truncation matters at the solution; "
+        "set equal to --c0 for a fixed truncation level [20]",
+    )
+    g.add_argument(
+        "--tail-tol",
+        type=float,
+        default=1e-6,
+        help="tolerated mean truncated prior mass before c0 is raised [1e-6]",
     )
     g.add_argument(
         "--starting", type=_float_list, help="explicit starting values (3 numbers for M2, 5 for M3)"
@@ -214,6 +224,17 @@ def _add_model_options(p: argparse.ArgumentParser) -> None:
         "--no-polish",
         action="store_true",
         help="report the EM stopping point instead of the Newton-polished maximiser",
+    )
+    g.add_argument(
+        "--no-accelerate",
+        action="store_true",
+        help="run the EM to its own stopping rule before Newton's method (slower, same result)",
+    )
+    g.add_argument(
+        "--newton-after",
+        type=int,
+        default=50,
+        help="EM iterations before the first Newton attempt [50]",
     )
     b = p.add_argument_group("binary traits")
     b.add_argument(
