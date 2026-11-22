@@ -116,8 +116,9 @@ def _add_sumstats_options(p: argparse.ArgumentParser) -> None:
     g.add_argument(
         "--n-scale",
         type=float,
-        default=1.0,
-        help="multiply N by this factor (0.25 for METAL/PGC Neff)",
+        default=None,
+        help="multiply N by this factor (0.25 for a METAL/PGC effective N; 1 confirms that an "
+        "effective-N column already is n_cases*n_controls/(n_cases+n_controls))",
     )
     g.add_argument(
         "--n-from-se",
@@ -240,7 +241,11 @@ def _add_model_options(p: argparse.ArgumentParser) -> None:
     b.add_argument(
         "--population-prevalence", type=float, help="disease prevalence in the population"
     )
-    b.add_argument("--sample-prevalence", type=float, help="proportion of cases in the GWAS")
+    b.add_argument(
+        "--sample-prevalence",
+        type=float,
+        help="proportion of cases in the GWAS [taken from the case and control counts, if given]",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -316,6 +321,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--alpha-gwas", type=float, default=5e-8)
     p.add_argument(
         "--k-fold", type=_float_list, default=[3.0, 4.0, 5.0], help="risk multiples [3,4,5]"
+    )
+    p.add_argument(
+        "--M",
+        type=float,
+        default=None,
+        help="number of independent SNPs among which the score selects [the reference's M; "
+        "the original paper uses 200000]",
     )
     p.add_argument("--out", "-o", help="write a TSV here (default: print)")
     _add_logging_options(p)
@@ -443,12 +455,22 @@ def build_parser() -> argparse.ArgumentParser:
         "configuration id such as w2000kb_r0.05 [default]",
     )
     f.add_argument(
-        "--dest", dest="data_dir", default=None, help="destination directory [$GENESIS_DATA_DIR]"
+        "--dest",
+        "--data-dir",
+        dest="data_dir",
+        default=None,
+        help="destination directory [$GENESIS_DATA_DIR]",
     )
     _add_logging_options(f)
     f.set_defaults(func="data_fetch")
     li = dsub.add_parser("list", help="list available references and what is installed")
-    li.add_argument("--data-dir", default=None)
+    li.add_argument(
+        "--data-dir",
+        "--dest",
+        dest="data_dir",
+        default=None,
+        help="directory holding the reference bundles [$GENESIS_DATA_DIR]",
+    )
     _add_logging_options(li)
     li.set_defaults(func="data_list")
     ve = dsub.add_parser("verify", help="re-check the checksums of a bundle directory")
@@ -470,10 +492,29 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--swarmfile", default="genesis.swarm", help="swarm file to write [genesis.swarm]"
     )
-    p.add_argument("--gpu", action="store_true", help="request one GPU per job")
-    p.add_argument("--cpus", type=int, default=16, help="CPUs per job [16]")
-    p.add_argument("--mem-gb", type=int, default=16, help="memory per job in GB [16]")
-    p.add_argument("--time", default="04:00:00", help="walltime per job [04:00:00]")
+    p.add_argument("--gpu", action="store_true", help="request one GPU per fit")
+    p.add_argument(
+        "--gpu-constraint",
+        default="gpua100|gpuv100x",
+        help="GPU node features accepted with --gpu; an empty string accepts any type "
+        "[gpua100|gpuv100x]",
+    )
+    p.add_argument("--cpus", type=int, default=None, help="CPUs per fit [16; 8 with --gpu]")
+    p.add_argument("--mem-gb", type=int, default=16, help="memory per fit in GB [16]")
+    p.add_argument("--time", default="04:00:00", help="walltime per fit [04:00:00]")
+    p.add_argument(
+        "--bundle",
+        type=int,
+        default=None,
+        help="run this many fits one after another in each subjob (swarm -b), for fits that "
+        "take only a few minutes",
+    )
+    p.add_argument("--partition", default=None, help="partition(s), e.g. quick,norm")
+    p.add_argument(
+        "--data-dir",
+        default=None,
+        help="reference-data directory written into every line [$GENESIS_DATA_DIR]",
+    )
     p.add_argument(
         "--activate", default="", help="shell line that activates the environment in each job"
     )

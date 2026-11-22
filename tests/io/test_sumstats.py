@@ -10,7 +10,7 @@ import pytest
 from scipy.stats import norm
 
 from genesis_gwas.data.sumstats import SumStats, read_sumstats
-from genesis_gwas.exceptions import DataError, InputError
+from genesis_gwas.exceptions import DataError, DataWarning, InputError
 
 
 def _write(tmp_path, name, text, compress=False):
@@ -40,6 +40,24 @@ def test_delimiters_and_compression(tmp_path, sep, name):
     ss = read_sumstats(_write(tmp_path, name, text, compress=name.endswith(".gz")))
     np.testing.assert_allclose(ss.table["Z"], [2.0, -3.0])
     assert ss.info["z_from"] == "beta / se"
+
+
+def test_effective_n_column_is_used_with_a_warning(tmp_path):
+    """'Neff' may be four times the GENESIS convention; never take it silently."""
+    p = _write(tmp_path, "neff.tsv", "SNP\tBETA\tSE\tNeff\nrs1\t0.025\t0.01\t96000\n")
+    with pytest.warns(DataWarning, match="n_scale=0.25"):
+        assert read_sumstats(p).table["N"].iloc[0] == 96000
+    import warnings as _warnings
+
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        assert read_sumstats(p, n_scale=0.25).table["N"].iloc[0] == 24000
+        assert read_sumstats(p, n_scale=1).table["N"].iloc[0] == 96000  # confirmed by the user
+        assert read_sumstats(p, n=50000).table["N"].iloc[0] == 50000
+    q = _write(tmp_path, "n.tsv", "SNP\tZ\tN\nrs1\t1\t1000\n")
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        read_sumstats(q)
 
 
 def test_bz2_and_xz_inputs(tmp_path):
@@ -80,6 +98,10 @@ def test_sample_size_options(tmp_path):
     ss = read_sumstats(p, n_cases="Ncase", n_controls="Ncontrol")
     np.testing.assert_allclose(ss.table["N"], [750.0, 250.0])  # ncase*ncontrol/(ncase+ncontrol)
     assert "effective" in ss.info["n_from"]
+    # the proportion of cases (median over SNPs) is kept for the liability-scale conversion
+    assert ss.info["case_fraction"] == pytest.approx(0.375)
+    assert read_sumstats(p, n="Ntot", case_fraction=0.25).info["case_fraction"] == 0.25
+    assert "case_fraction" not in read_sumstats(p, n="Ntot").info
     np.testing.assert_allclose(
         read_sumstats(p, n_cases=1000, n_controls=3000).table["N"], [750.0, 750.0]
     )

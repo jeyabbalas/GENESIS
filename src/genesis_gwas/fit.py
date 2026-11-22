@@ -192,7 +192,9 @@ def _em_then_newton(
             n_backtracks=backtracks,
         )
         if part.status == "stalled":
-            return em, pol
+            # The Newton attempt of the previous block (if any) started from an earlier
+            # EM iterate; the estimate is the iterate at which the EM stalled.
+            return em, None
         pol = newton_polish(lik, part.theta, cfg)
         if part.status == "converged" or pol.status == "converged" or done >= cfg.max_iter:
             if part.status != "converged" and pol.status == "converged":
@@ -202,8 +204,10 @@ def _em_then_newton(
             # Newton declined and the three-component fit is collapsing onto the
             # two-component model: the remaining EM iterations would only drift along a
             # flat direction of the likelihood (thousands of them in the original).
+            # The flagged EM iterate is what is reported, not a Newton iterate that moved
+            # away from it without converging.
             em.status = "not_identified"
-            return em, pol
+            return em, (pol if pol.n_steps == 0 else None)
         block *= 2
 
 
@@ -294,8 +298,10 @@ def fit(
         Count each marker's own score twice in the sandwich "meat", as the original code
         does. Defaults to the value of ``legacy``.
     population_prevalence, sample_prevalence
-        For binary traits: if both are given, heritability is also reported on the
-        observed and liability scales.
+        For binary traits: the prevalence of the disease in the population and the
+        proportion of cases in the GWAS. If given, heritability is also reported on the
+        observed and liability scales. ``sample_prevalence`` may be omitted when the
+        data were read with case and control counts, from which it is then taken.
     device, threads, chunk_size, plan
         Compute options; see :func:`genesis_gwas.compute.resolve_plan`.
     progress
@@ -313,8 +319,24 @@ def fit(
     cfg = em if em is not None else EMConfig(c0=c0, c0_max=max(20, c0), legacy=legacy)
     legacy = cfg.legacy
     double_count = legacy if sandwich_double_count is None else bool(sandwich_double_count)
-    if (population_prevalence is None) != (sample_prevalence is None):
-        raise InputError("Give both population_prevalence and sample_prevalence, or neither.")
+    if population_prevalence is not None and sample_prevalence is None:
+        counted = (data.meta or {}).get("sumstats", {}).get("case_fraction")
+        if counted is None:
+            raise InputError(
+                "population_prevalence was given without sample_prevalence, and the proportion "
+                "of cases in the study cannot be taken from the data (no case and control "
+                "counts were read). Give sample_prevalence as well."
+            )
+        sample_prevalence = float(counted)
+        log.info(
+            "Sample prevalence %.4g taken from the case and control counts of the input",
+            sample_prevalence,
+        )
+    elif sample_prevalence is not None and population_prevalence is None:
+        raise InputError(
+            "sample_prevalence was given without population_prevalence; the conversion of "
+            "heritability to the liability scale needs both."
+        )
     plan = plan or resolve_plan(device, threads=threads, chunk_size=chunk_size)
     nbh = neighborhoods if neighborhoods is not None else data.neighborhoods
     explicit, pics = _as_start_list(spec, starting, starting_pic)
@@ -629,8 +651,9 @@ def fit(
             se = sw.se
             for name in bound_names:
                 se[spec.param_names.index(name)] = np.nan
-            if degenerate:
-                # d_s = tr(I^-1 J) is meaningless when the information is singular.
+            if degenerate and not legacy:
+                # d_s = tr(I^-1 J) is meaningless when the information is singular. (In
+                # legacy mode the original's numbers are reported as they are.)
                 ds = float("nan")
             else:
                 ic = information_criteria(loglik, ds, float(np.mean(data.n)), bic_gamma)
@@ -647,6 +670,8 @@ def fit(
             with np.errstate(invalid="ignore"):
                 se_alt[fidx] = np.sqrt(np.where(np.diag(cov_alt) >= 0, np.diag(cov_alt), np.nan))
             ds_alt = float(np.trace(inv_f @ j_alt))
+            if degenerate and not legacy:
+                ds_alt = float("nan")
             diagnostics["sandwich_alt"] = {
                 "convention": "paper" if double_count else "original_double_count",
                 "se": se_alt,

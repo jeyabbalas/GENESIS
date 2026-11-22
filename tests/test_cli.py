@@ -132,6 +132,15 @@ def test_downstream_commands(fitted, example, tmp_path, capsys):
     )
     pred = pd.read_csv(out, sep="\t")
     assert 0.5 <= pred["auc"].iloc[0] < 1 and pred["alpha"].iloc[0] == 5e-8
+    # --M: the number of independent SNPs among which the score selects (default: the fit's M)
+    out_m = tmp_path / "pred_m.tsv"
+    assert main(["predict", fit_json, "--n", "1e5", "--M", "2e5", "--out", str(out_m), "-q"]) == 0
+    default_m = tmp_path / "pred_default.tsv"
+    assert main(["predict", fit_json, "--n", "1e5", "--out", str(default_m), "-q"]) == 0
+    assert (
+        pd.read_csv(out_m, sep="\t")["auc"].iloc[0]
+        != pd.read_csv(default_m, sep="\t")["auc"].iloc[0]
+    )
 
     post = tmp_path / "post.tsv.gz"
     args = [
@@ -280,6 +289,9 @@ def test_errors_are_reported_cleanly(example, tmp_path, capsys):
 def test_data_commands(tmp_path, capsys, monkeypatch):
     monkeypatch.setenv("GENESIS_DATA_DIR", str(tmp_path))
     assert main(["data", "list"]) == 0
+    # both spellings of the directory option work in every `genesis data` command
+    assert main(["data", "list", "--dest", str(tmp_path)]) == 0
+    assert main(["data", "list", "--data-dir", str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "eur_1kg_hm3" in out and "mini_chr22" in out and "w1000kb_r0.1" in out
     root = gg.load_reference("mini_chr22").root
@@ -316,11 +328,13 @@ def test_trait_names():
     assert trait_name(".gz") == ".gz"
 
 
-def test_swarm_file_and_command(tmp_path):
+def test_swarm_file_and_command(tmp_path, monkeypatch):
+    monkeypatch.delenv("GENESIS_DATA_DIR", raising=False)
     files = ["/data/me/gwas/ERpos.tsv.gz", "/data/me/gwas/ER neg.tsv.gz"]
+    out = tmp_path / "results"
     cmd = write_swarm(
         files,
-        outdir="/data/me/results",
+        outdir=out,
         swarmfile=tmp_path / "jobs" / "g.swarm",
         fit_args=["--model", "both", "--n-cases", "NCASE"],
         cpus=8,
@@ -337,28 +351,64 @@ def test_swarm_file_and_command(tmp_path):
     assert lines[0].startswith(
         "source /data/me/conda/etc/profile.d/conda.sh && conda activate genesis && genesis fit"
     )
-    assert "--out /data/me/results/ERpos --device cpu --model both --n-cases NCASE" in lines[0]
-    assert "'/data/me/gwas/ER neg.tsv.gz'" in lines[1] and "/data/me/results/ER_neg" in lines[1]
-    assert (
-        cmd.startswith("swarm -f ")
-        and "-g 12 -t 8 --time 02:00:00" in cmd
-        and "--logdir /data/me/results/logs" in cmd
-    )
-    assert "gpu" not in cmd
+    assert f"--out {out}/ERpos --device cpu --model both --n-cases NCASE" in lines[0]
+    assert "'/data/me/gwas/ER neg.tsv.gz'" in lines[1] and f"{out}/ER_neg" in lines[1]
+    # current swarm syntax: options first, the swarm file last; the log directory exists
+    assert cmd == f"swarm -g 12 -t 8 --time 02:00:00 --logdir {out}/logs {tmp_path}/jobs/g.swarm"
+    assert (out / "logs").is_dir()
+    assert "gpu" not in cmd and "--data-dir" not in lines[0]
 
-    gpu = write_swarm(files, outdir="out", swarmfile=tmp_path / "gpu.swarm", gpu=True)
-    assert (
-        "--partition gpu --gres gpu:1" in gpu
-        and "--device cuda" in (tmp_path / "gpu.swarm").read_text()
-    )
-    assert swarm_command("f.swarm", cpus=4, mem_gb=8).split()[:3] == ["swarm", "-f", "f.swarm"]
+    gpu = write_swarm(files, outdir=out, swarmfile=tmp_path / "gpu.swarm", gpu=True, bundle=4)
+    assert "-t 8 " in gpu and "-b 4 " in gpu  # 8 CPUs: within the CPUs-per-GPU limit of every type
+    assert "--partition gpu --gres=gpu:1 --sbatch '--constraint=\"gpua100|gpuv100x\"'" in gpu
+    assert "--device cuda" in (tmp_path / "gpu.swarm").read_text()
+    anygpu = swarm_command("f.swarm", gpu=True, gpu_constraint="", partition="gpu")
+    assert "--constraint" not in anygpu and anygpu.endswith(" f.swarm")
+    assert swarm_command("f.swarm", cpus=4, mem_gb=8, devel=True).split()[:2] == [
+        "swarm",
+        "--devel",
+    ]
+    assert "--partition quick,norm" in swarm_command("f.swarm", partition="quick,norm")
 
     from genesis_gwas.exceptions import InputError
 
     with pytest.raises(InputError, match="same output prefix"):
-        write_swarm(["a/x.tsv", "b/x.tsv.gz"], outdir="o", swarmfile=tmp_path / "d.swarm")
+        write_swarm(["a/x.tsv", "b/x.tsv.gz"], outdir=out, swarmfile=tmp_path / "d.swarm")
     with pytest.raises(InputError):
-        write_swarm([], outdir="o", swarmfile=tmp_path / "e.swarm")
+        write_swarm([], outdir=out, swarmfile=tmp_path / "e.swarm")
+    with pytest.raises(InputError, match="comment"):
+        write_swarm(["/data/me/a#1.tsv"], outdir=out, swarmfile=tmp_path / "f.swarm")
+    with pytest.raises(InputError):
+        swarm_command("f.swarm", bundle=0)
+
+
+def test_swarm_lines_do_not_depend_on_the_submitting_shell(tmp_path, monkeypatch):
+    """Relative paths become absolute and the reference-data directory is written into every line."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GENESIS_DATA_DIR", str(tmp_path / "refdata"))
+    (tmp_path / "gwas").mkdir()
+    (tmp_path / "gwas" / "t1.tsv.gz").write_bytes(b"")
+    cmd = write_swarm(["gwas/t1.tsv.gz"], outdir="res", swarmfile="jobs/t.swarm")
+    line = (tmp_path / "jobs" / "t.swarm").read_text().splitlines()[-1]
+    assert f"genesis fit {tmp_path}/gwas/t1.tsv.gz --out {tmp_path}/res/t1 --device cpu" in line
+    assert f"--data-dir {tmp_path}/refdata" in line
+    assert cmd.endswith(f"--logdir {tmp_path}/res/logs {tmp_path}/jobs/t.swarm")
+    # an explicit --data-dir among the fit options, or as an argument, wins over the environment
+    write_swarm(
+        ["gwas/t1.tsv.gz"], outdir="res", swarmfile="u.swarm", fit_args=["--data-dir", "/x"]
+    )
+    assert (tmp_path / "u.swarm").read_text().count("--data-dir") == 1
+    write_swarm(["gwas/t1.tsv.gz"], outdir="res", swarmfile="v.swarm", data_dir="/data/grp/ref")
+    assert "--data-dir /data/grp/ref" in (tmp_path / "v.swarm").read_text()
+    # a reference given as a directory is made absolute; one given by name is left alone
+    (tmp_path / "refs" / "afr").mkdir(parents=True)
+    for args in (["--reference", "refs/afr"], ["--reference=refs/afr"]):
+        write_swarm(["gwas/t1.tsv.gz"], outdir="res", swarmfile="w.swarm", fit_args=args)
+        assert f"{tmp_path}/refs/afr" in (tmp_path / "w.swarm").read_text()
+    write_swarm(
+        ["gwas/t1.tsv.gz"], outdir="res", swarmfile="x.swarm", fit_args=["--reference", "abc"]
+    )
+    assert "--reference abc" in (tmp_path / "x.swarm").read_text()
 
 
 def test_swarm_command_line(tmp_path, capsys):
@@ -366,14 +416,20 @@ def test_swarm_command_line(tmp_path, capsys):
     code = main(
         [
             "swarm",
-            "a.tsv.gz",
-            "b.tsv.gz",
+            str(tmp_path / "a.tsv.gz"),
+            str(tmp_path / "b.tsv.gz"),
             "--outdir",
-            "res",
+            str(tmp_path / "res"),
             "--swarmfile",
             str(sf),
             "--cpus",
             "4",
+            "--bundle",
+            "3",
+            "--partition",
+            "quick,norm",
+            "--data-dir",
+            str(tmp_path / "ref"),
             "--quiet",
             "--",
             "--model",
@@ -382,6 +438,9 @@ def test_swarm_command_line(tmp_path, capsys):
         ]
     )
     assert code == 0
-    assert capsys.readouterr().out.strip().startswith("swarm -f")
+    printed = capsys.readouterr().out.strip()
+    assert printed.startswith("swarm -g 16 -t 4 --time 04:00:00 -b 3 --partition quick,norm")
+    assert printed.endswith(str(sf)) and "\n" not in printed
     body = sf.read_text()
-    assert body.count("genesis fit") == 2 and "--model 2 --no-qc" in body
+    assert body.count("genesis fit") == 2 and body.count(f"--data-dir {tmp_path}/ref") == 2
+    assert "--model 2 --no-qc" in body

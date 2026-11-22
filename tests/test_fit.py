@@ -260,8 +260,19 @@ def test_prevalences_give_liability_scale(data, m2):
     liab = res.diagnostics["liability"]
     assert liab["h2_observed"] == pytest.approx(res.heritability * 0.4 * 0.6)
     assert liab["h2_liability"] > 0 and "liability scale" in res.summary()
-    with pytest.raises(InputError):
+    # no case and control counts were read for these data: both prevalences are needed
+    with pytest.raises(InputError, match="sample_prevalence"):
         gg.fit(data, 2, population_prevalence=0.01)
+    with pytest.raises(InputError, match="population_prevalence"):
+        gg.fit(data, 2, sample_prevalence=0.4)
+    # with counts, the proportion of cases in the study is the sample prevalence
+    import dataclasses
+
+    counted = dataclasses.replace(
+        data, meta={**data.meta, "sumstats": {**data.meta["sumstats"], "case_fraction": 0.4}}
+    )
+    auto = gg.fit(counted, 2, threads=2, population_prevalence=0.01, em=FIXED)
+    assert auto.diagnostics["liability"]["h2_liability"] == pytest.approx(liab["h2_liability"])
 
 
 def test_missing_neighbourhoods_warn(data):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import shlex
 import sys
 import tempfile
@@ -366,7 +367,12 @@ def cmd_predict(args: argparse.Namespace) -> int:
     rows = []
     for n in args.n:
         res = polyrisk_predict(
-            n, fit, threshold=args.threshold, alpha_gwas=args.alpha_gwas, k_fold=tuple(args.k_fold)
+            n,
+            fit,
+            M=args.M,
+            threshold=args.threshold,
+            alpha_gwas=args.alpha_gwas,
+            k_fold=tuple(args.k_fold),
         )
         row: dict[str, Any] = {
             "n": n,
@@ -543,23 +549,30 @@ def cmd_swarm(args: argparse.Namespace) -> int:
     from genesis_gwas.hpc.swarm import write_swarm
 
     _configure_logging(args)
-    extra = list(args.fit_args)
-    command = write_swarm(
-        args.sumstats,
+    options: dict[str, Any] = dict(
         outdir=args.outdir,
         swarmfile=args.swarmfile,
-        fit_args=extra,
+        fit_args=list(args.fit_args),
         gpu=args.gpu,
         cpus=args.cpus,
         mem_gb=args.mem_gb,
         walltime=args.time,
         activate=args.activate,
+        data_dir=args.data_dir,
+        bundle=args.bundle,
+        partition=args.partition,
+        gpu_constraint=args.gpu_constraint,
     )
-    log.info(
-        "Wrote %s with %d job(s). Submit it from the Biowulf login node with:",
-        args.swarmfile,
-        len(args.sumstats),
-    )
+    command = write_swarm(args.sumstats, **options)
+    dry_run = command.replace("swarm ", "swarm --devel ", 1)
+    if not (args.data_dir or os.environ.get("GENESIS_DATA_DIR")):
+        log.warning(
+            "WARNING: GENESIS_DATA_DIR is not set and --data-dir was not given: the jobs will "
+            "look for the reference data in the default cache in your home directory."
+        )
+    log.info("Wrote %s with %d fit(s).", args.swarmfile, len(args.sumstats))
+    log.info("Dry run (submits nothing):  %s", dry_run)
+    log.info("Submit it from the Biowulf login node with:")
     print(command)
     return 0
 
@@ -587,8 +600,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", gg.exceptions.GenesisWarning)
         m2 = gg.fit(data, 2, plan=plan)
-        # A short EM followed by Newton polishing keeps the demo to a few seconds.
-        m3 = gg.fit(data, 3, starting=m2, plan=plan, em=gg.EMConfig(max_iter=250))
+        m3 = gg.fit(data, 3, starting=m2, plan=plan)
     cmp = gg.select_model([m2, m3])
     for res in (m2, m3):
         res.to_json(f"{prefix}.M{res.n_components}.json")
@@ -645,7 +657,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     candidates: list[tuple[str, dict[str, Any]]] = [
         ("numpy / cpu, 1 thread", dict(device="cpu", threads=1)),
         (
-            f"numpy / cpu, {env['available_cpus']} thread(s)",
+            f"numpy / cpu, {args.threads or env['available_cpus']} thread(s)",
             dict(device="cpu", threads=args.threads),
         ),
     ]

@@ -29,6 +29,7 @@ from __future__ import annotations
 import gzip
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -37,7 +38,7 @@ import numpy as np
 import pandas as pd
 from scipy.special import ndtri
 
-from genesis_gwas.exceptions import DataError, InputError
+from genesis_gwas.exceptions import DataError, DataWarning, InputError
 
 __all__ = ["COLUMN_ALIASES", "SumStats", "read_sumstats"]
 
@@ -277,7 +278,7 @@ def read_sumstats(
     n_cases: str | float | None = None,
     n_controls: str | float | None = None,
     case_fraction: float | None = None,
-    n_scale: float = 1.0,
+    n_scale: float | None = None,
     n_from_se: bool = False,
     chrom: str | None = None,
     pos: str | None = None,
@@ -306,7 +307,9 @@ def read_sumstats(
         cases :math:`\phi`; ``N`` becomes :math:`N\phi(1-\phi)`.
     n_scale
         Multiply the sample size by this factor (e.g. ``0.25`` to convert a METAL/PGC
-        style effective N to the GENESIS convention).
+        style effective N to the GENESIS convention). A sample-size column whose name
+        says "effective" is used with a warning unless a factor is given (``1`` if the
+        column already follows the GENESIS convention).
     n_from_se
         Derive a per-SNP effective sample size from the standard error and the allele
         frequency, :math:`n_k = 1/\{2 f_k(1-f_k)\,\mathrm{SE}_k^2\}`. Appropriate for
@@ -477,6 +480,12 @@ def read_sumstats(
             )
             nval = nca * nco / (nca + nco)
             details["n_from"] = "effective N = n_cases * n_controls / (n_cases + n_controls)"
+            frac = nca / (nca + nco)
+            frac = frac[np.isfinite(frac) & (frac > 0) & (frac < 1)]
+            if frac.size:
+                # Proportion of cases in the study (median over SNPs); used as the sample
+                # prevalence when heritability is converted to the liability scale.
+                details["case_fraction"] = float(np.median(frac))
             if "N" in cols and not explicit_cc:
                 log.warning(
                     "Found case/control count columns (%s, %s) as well as %r: using the effective "
@@ -495,16 +504,33 @@ def read_sumstats(
                 "Cannot determine sample sizes: need an N column, n=<number>, case/control "
                 f"counts, or n_from_se=True. Columns recognised: {cols}; present: {available}."
             )
+        if (
+            "eff" in str(cols.get("N", "")).lower()
+            and details["n_from"] == cols.get("N")
+            and n_scale is None
+        ):
+            warnings.warn(
+                f"The sample size is taken from the column {cols['N']!r} as it is. For a "
+                "case-control study GENESIS needs n_cases*n_controls/(n_cases+n_controls). An "
+                "'effective N' in the METAL/PGC convention, 4/(1/n_cases + 1/n_controls), is "
+                "four times that and would make the heritability four times too small: if "
+                "this column follows it, pass n_scale=0.25 (--n-scale 0.25). Passing "
+                "n_scale explicitly (1 if the column is already right) silences this warning.",
+                DataWarning,
+                stacklevel=2,
+            )
         if case_fraction is not None:
             if not 0.0 < case_fraction < 1.0:
                 raise InputError("case_fraction must lie in (0, 1)")
             nval = nval * case_fraction * (1.0 - case_fraction)
             details["n_from"] += f" x {case_fraction:g} x {1 - case_fraction:g} (case fraction)"
-        if n_scale != 1.0:
+            details["case_fraction"] = float(case_fraction)
+        if n_scale is not None:
             if not n_scale > 0:
                 raise InputError("n_scale must be > 0")
-            nval = nval * n_scale
-            details["n_from"] += f" x {n_scale:g}"
+            if n_scale != 1.0:
+                nval = nval * n_scale
+                details["n_from"] += f" x {n_scale:g}"
     out["N"] = nval
 
     for logical in ("EAF", "INFO"):
