@@ -497,6 +497,18 @@ def build_parser() -> argparse.ArgumentParser:
         "available backend/device reproduces the reference results on the packaged test data.",
     )
     p.add_argument("--json", action="store_true", help="machine-readable output")
+    p.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="also time one pass over a synthetic genome-wide data set on every backend/device "
+        "(use it inside a job to decide between CPUs and GPUs and to set --time)",
+    )
+    p.add_argument(
+        "--benchmark-snps",
+        type=int,
+        default=1_000_000,
+        help="number of synthetic SNPs for --benchmark [1000000]",
+    )
     _add_compute_options(p)
     _add_logging_options(p)
     p.set_defaults(func="doctor")

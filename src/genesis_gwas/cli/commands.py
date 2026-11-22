@@ -682,6 +682,38 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     env["self_test"] = checks
     env["ok"] = ok
 
+    bench: list[dict[str, Any]] = []
+    if args.benchmark:
+        # One pass = everything an EM iteration needs twice (or a Newton step roughly once),
+        # on synthetic data the size of a real analysis; three-component model, c0 = 10.
+        rng = np.random.default_rng(0)
+        k = max(1000, int(args.benchmark_snps))
+        nstar = np.clip(rng.gamma(1.6, 29.0, k).astype(np.int64), 1, 700)
+        nsamp = rng.uniform(1.0e5, 1.5e5, k)
+        big = gg.ModelData(
+            betahat=rng.normal(0.0, np.sqrt(1.0 / nsamp + 2e-6)),
+            varbetahat=1.0 / nsamp,
+            ldscore=np.maximum(1.0, nstar * rng.uniform(0.2, 0.55, k)),
+            nstar=nstar,
+            n=nsamp,
+            M=k,
+        )
+        theta_b = np.array([0.01, 0.1, 1.5e-4, 2e-5, 1.5e-6])
+        for label, kw in candidates[1:]:
+            try:
+                with Engine(big, resolve_plan(**kw)) as eng:
+                    lik = CompositeLikelihood(spec, eng, 10)
+                    lik.em_pass(theta_b)  # warm-up (allocations, GPU initialisation)
+                    times = []
+                    for _ in range(3):
+                        t0 = time.perf_counter()
+                        lik.em_pass(theta_b)
+                        times.append(time.perf_counter() - t0)
+                bench.append({"backend": label, "seconds_per_pass": min(times), "n_snps": k})
+            except Exception as exc:
+                bench.append({"backend": label, "error": f"{type(exc).__name__}: {exc}"})
+        env["benchmark"] = bench
+
     if args.json:
         print(json.dumps(env, indent=2))
     else:
@@ -723,4 +755,21 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             if ok
             else "\nPROBLEM: at least one backend failed or disagrees (see above)."
         )
+        if bench:
+            print(
+                f"\nBenchmark: one pass over {bench[0].get('n_snps', 0):,} synthetic SNPs, "
+                "three-component model, c0 = 10"
+            )
+            for b in bench:
+                if "error" in b:
+                    print(f"  FAIL  {b['backend']:<44} {b['error']}")
+                else:
+                    print(
+                        f"        {b['backend']:<44} {b['seconds_per_pass'] * 1e3:9.1f} ms per pass"
+                    )
+            print(
+                "  A default three-component fit needs on the order of 150 passes (two per EM "
+                "iteration during the\n  50-iteration warm-up, then a few Newton steps), a "
+                "two-component fit one tenth of the work per pass."
+            )
     return 0 if ok else 1

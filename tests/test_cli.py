@@ -299,6 +299,13 @@ def test_demo_and_doctor(tmp_path, capsys):
     assert all(c["ok"] for c in report["self_test"]) and len(report["self_test"]) >= 2
     assert main(["doctor", "--threads", "2", "--quiet"]) == 0
     assert "All backends agree" in capsys.readouterr().out
+    args = ["doctor", "--threads", "2", "--quiet", "--benchmark", "--benchmark-snps", "5000"]
+    assert main(args) == 0
+    out = capsys.readouterr().out
+    assert "ms per pass" in out and "5,000 synthetic SNPs" in out
+    assert main([*args, "--json"]) == 0
+    bench = json.loads(capsys.readouterr().out)["benchmark"]
+    assert bench and all(b["seconds_per_pass"] > 0 for b in bench)
 
 
 # ----------------------------------------------------------------------- swarm
