@@ -3,7 +3,7 @@
 Design goals (each addresses a way the original package's 1.6 GB monolithic download
 fails in practice):
 
-* **Small and lazy** — only the files an analysis needs are fetched (≈ 32 MB for the
+* **Small and lazy** — only the files an analysis needs are fetched (32 MB for the
   default configuration instead of 1.6 GB).
 * **Resumable** — interrupted transfers continue with an HTTP ``Range`` request.
 * **Verified** — every file is checked against the SHA-256 recorded in the manifest that
@@ -275,7 +275,7 @@ def fetch_bundle(
     components
         ``"default"`` (SNP table + the 1 Mb / :math:`r^2\ge0.1` configuration, 32 MB),
         ``"ld"`` (all nine LD configurations), ``"pairld"``, ``"nullz"`` (null Z-score
-        replicates for QQ envelopes, 214 MB), ``"examples"``, ``"all"`` (480 MB), an LD
+        replicates for QQ envelopes, 214 MB), ``"examples"``, ``"all"`` (504 MB), an LD
         configuration id such as ``"w2000kb_r0.05"``, or a list of these.
     data_dir
         Destination (default :func:`genesis_gwas.data.reference.default_data_dir`).

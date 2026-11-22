@@ -200,8 +200,27 @@ class SumStats:
 
 
 def _open_text(path: Path) -> Any:
-    if path.suffix == ".gz" or path.suffix == ".bgz":
+    """Open a possibly compressed text file (same formats as :func:`pandas.read_csv` infers)."""
+    suffix = path.suffix.lower()
+    if suffix in (".gz", ".bgz"):
         return gzip.open(path, "rt")
+    if suffix == ".bz2":
+        import bz2
+
+        return bz2.open(path, "rt")
+    if suffix == ".xz":
+        import lzma
+
+        return lzma.open(path, "rt")
+    if suffix == ".zst":
+        try:
+            import zstandard
+        except ImportError as exc:
+            raise DataError(
+                f"{path} is zstd-compressed; install the 'zstandard' package or recompress it "
+                "with gzip."
+            ) from exc
+        return zstandard.open(path, "rt")
     return path.open("rt")
 
 

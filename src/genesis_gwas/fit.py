@@ -121,6 +121,19 @@ def _two_component_start(
     return start
 
 
+def _degeneracy(spec: ModelSpec, theta: np.ndarray) -> str | None:
+    """Why a three-component estimate is not identified, or ``None`` if it is fine."""
+    if spec.n_components != 3:
+        return None
+    hi = max(float(theta[2]), float(theta[3]))
+    lo = min(float(theta[2]), float(theta[3]))
+    if (hi - lo) <= 1e-2 * hi:
+        return "the two variance components have merged (sigmasq1 = sigmasq2 to within 1%)"
+    if lo <= 1e-11:
+        return "one variance component has collapsed to zero"
+    return None
+
+
 def _em_then_newton(
     lik: CompositeLikelihood,
     start: np.ndarray,
@@ -184,6 +197,12 @@ def _em_then_newton(
         if part.status == "converged" or pol.status == "converged" or done >= cfg.max_iter:
             if part.status != "converged" and pol.status == "converged":
                 em.status = "newton"  # the EM warm-up was ended by a successful Newton solve
+            return em, pol
+        if _degeneracy(lik.spec, part.theta) is not None:
+            # Newton declined and the three-component fit is collapsing onto the
+            # two-component model: the remaining EM iterations would only drift along a
+            # flat direction of the likelihood (thousands of them in the original).
+            em.status = "not_identified"
             return em, pol
         block *= 2
 
@@ -441,6 +460,8 @@ def fit(
             )
             if tail <= cfg.tail_tol or c0_now >= cfg.c0_max:
                 break
+            if _degeneracy(spec, theta) is not None:
+                break  # a model that is not identified is not worth refining further
             for cand in range(c0_now + 1, cfg.c0_max + 1):
                 lik.set_c0(cand)
                 c0_now = cand
@@ -457,7 +478,11 @@ def fit(
         timings["em_seconds"] = time.perf_counter() - t0
         assert first_runs is not None
         start_used = first_runs[first_best][0]
-        if not legacy and c0_path[-1]["mean_tail"] > cfg.tail_tol:
+        if (
+            not legacy
+            and c0_path[-1]["mean_tail"] > cfg.tail_tol
+            and _degeneracy(spec, theta) is None
+        ):
             msg = (
                 f"Truncation still matters at the ceiling c0 = {c0_now}: on average "
                 f"{c0_path[-1]['mean_tail']:.1e} of the prior mass is discarded (tolerance "
@@ -514,7 +539,7 @@ def fit(
                 f"The EM used all {cfg.max_iter} iterations; Newton polishing then converged to a "
                 "stationary point of the likelihood, which is the reported estimate."
             )
-        if not final_converged:
+        if not final_converged and emres.status != "not_identified":
             msg = {
                 "max_iter": f"EM reached the iteration limit ({cfg.max_iter}) without meeting the "
                 "convergence criteria; consider raising max_iter.",
@@ -543,28 +568,16 @@ def fit(
         if prefits:
             diagnostics["prefit_m2"] = prefits
         labels_swapped = False
-        degenerate = False
-        if spec.n_components == 3:
-            sig_hi, sig_lo = (
-                max(float(theta[2]), float(theta[3])),
-                min(float(theta[2]), float(theta[3])),
+        why = _degeneracy(spec, theta)
+        degenerate = why is not None
+        if degenerate:
+            msg = (
+                f"The three-component model is not identified for these data: {why}. "
+                "p1 and the cluster-specific quantities are not meaningful and the standard "
+                "errors are unreliable; use the two-component model."
             )
-            merged = (sig_hi - sig_lo) <= 1e-2 * sig_hi
-            empty = sig_lo <= 1e-11
-            if merged or empty:
-                degenerate = True
-                why = (
-                    "the two variance components have merged (sigmasq1 = sigmasq2 to within 1%)"
-                    if merged
-                    else "one variance component has collapsed to zero"
-                )
-                msg = (
-                    f"The three-component model is not identified for these data: {why}. "
-                    "p1 and the cluster-specific quantities are not meaningful and the standard "
-                    "errors are unreliable; use the two-component model."
-                )
-                notes.append(msg)
-                warnings.warn(msg, NumericalWarning, stacklevel=2)
+            notes.append(msg)
+            warnings.warn(msg, NumericalWarning, stacklevel=2)
         diagnostics["degenerate"] = degenerate
         if variance:
             t0 = time.perf_counter()
@@ -616,8 +629,12 @@ def fit(
             se = sw.se
             for name in bound_names:
                 se[spec.param_names.index(name)] = np.nan
-            ic = information_criteria(loglik, ds, float(np.mean(data.n)), bic_gamma)
-            aic, bic = ic["aic"], ic["bic"]
+            if degenerate:
+                # d_s = tr(I^-1 J) is meaningless when the information is singular.
+                ds = float("nan")
+            else:
+                ic = information_criteria(loglik, ds, float(np.mean(data.n)), bic_gamma)
+                aic, bic = ic["aic"], ic["bic"]
 
             # The other sandwich convention, so that both sets of standard errors are
             # available from one fit: J_original = J_paper + sum_k S_k S_k'.

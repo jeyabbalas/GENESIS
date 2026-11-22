@@ -42,6 +42,18 @@ def test_delimiters_and_compression(tmp_path, sep, name):
     assert ss.info["z_from"] == "beta / se"
 
 
+def test_bz2_and_xz_inputs(tmp_path):
+    import bz2
+    import lzma
+
+    text = b"SNP\tZ\tN\nrs1\t1.5\t1000\nrs2\t-2.25\t1200\n"
+    (tmp_path / "a.tsv.bz2").write_bytes(bz2.compress(text))
+    (tmp_path / "a.tsv.xz").write_bytes(lzma.compress(text))
+    for name in ("a.tsv.bz2", "a.tsv.xz"):
+        ss = read_sumstats(tmp_path / name)
+        np.testing.assert_allclose(ss.table["Z"], [1.5, -2.25])
+
+
 def test_z_from_odds_ratio_and_from_p(tmp_path):
     p = _write(
         tmp_path,

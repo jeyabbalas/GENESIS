@@ -76,10 +76,10 @@ def ldsc_regression(data: ModelData) -> LDScoreRegression:
     xm = float(x.mean())
     ym = float(chisq.mean())
     dx = x - xm
-    sxx = float(dx @ dx)
+    sxx = float(np.sum(dx * dx))
     if sxx <= 0:
         raise InputError("LD scores are constant across SNPs; cannot derive starting values.")
-    slope = float(dx @ (chisq - ym)) / sxx
+    slope = float(np.sum(dx * (chisq - ym))) / sxx
     intercept = ym - slope * xm
     return LDScoreRegression(
         intercept=intercept,

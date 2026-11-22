@@ -201,6 +201,24 @@ def test_three_component_from_two_component_and_model_selection(data, m2):
         gg.select_model([])
 
 
+def test_three_component_fit_that_collapses_is_stopped_early_and_flagged(data, m2):
+    """One chromosome cannot support two clusters: no thousands of EM iterations, no garbage BIC."""
+    with pytest.warns(gg.exceptions.NumericalWarning, match="not identified"):
+        m3 = gg.fit(data, 3, threads=2)  # default settings, internal M2 pre-fit
+    assert m3.diagnostics["degenerate"] and m3.n_iter < 500
+    assert m3.status in ("not_identified", "converged")
+    assert np.isnan(m3.bic) and np.isnan(m3.aic) and np.isnan(m3.ds)
+    assert m3.c0 == 10  # a model that is not identified is not refined at higher truncation levels
+    text = m3.summary()
+    assert (
+        "not available (model not identified)" in text and "nan" not in text.split("Parameter")[0]
+    )
+    cmp = gg.select_model([m2, m3])
+    assert cmp.best is m2 and "n/a" in cmp.summary() and "(not identified)" in cmp.summary()
+    with pytest.raises(InputError):
+        gg.select_model([m3, gg.fit(data, 2, threads=2, variance=False, em=FIXED)])
+
+
 def test_default_three_component_start_runs_an_internal_prefit(data):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

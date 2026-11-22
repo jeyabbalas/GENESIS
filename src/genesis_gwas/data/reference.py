@@ -133,6 +133,8 @@ class LDReference:
         ``(M,)`` GRCh38 positions (``-1`` where unavailable), or ``None``.
     hm3_no_mhc
         ``(M,)`` flag of the HapMap3-without-MHC list used by the QC filter, or ``None``.
+    download
+        Whether files of the bundle that are missing locally may be downloaded on first use.
     nstar, ldscore
         ``(M,)`` :math:`N^*_k` and :math:`\ell_k` under ``config``.
     """
@@ -149,6 +151,7 @@ class LDReference:
     ldscore: np.ndarray
     pos_grch38: np.ndarray | None = None
     hm3_no_mhc: np.ndarray | None = None
+    download: bool = True
     _cache: dict[str, Any] = field(default_factory=dict, repr=False)
 
     # ----------------------------------------------------------------- basics
@@ -243,8 +246,16 @@ class LDReference:
     def _resolve(self, rel: str) -> Path:
         path = self.root / rel
         if not path.exists():
-            from genesis_gwas.data.download import ensure_file
+            from genesis_gwas.data.download import ensure_file, known_bundles
 
+            if self.name not in known_bundles():
+                raise ReferenceDataError(f"Reference file {path} is missing.")
+            if not self.download:
+                raise ReferenceDataError(
+                    f"Reference file {path} is missing and downloads are disabled. Fetch it "
+                    f"beforehand on a machine with internet access (`genesis data fetch "
+                    f"{self.name} --components all`)."
+                )
             return ensure_file(self.name, rel, self.root)
         return path
 
@@ -381,11 +392,28 @@ def _select_config(
             f"Reference {name!r} has several LD configurations and none is the default "
             f"(1000 kb, r2 >= 0.1); choose one of {[c.id for c in configs]}."
         )
-    for c in configs:
-        if (window_kb is None or np.isclose(c.window_kb, window_kb)) and (
-            r2_min is None or np.isclose(c.r2_min, r2_min)
-        ):
-            return c
+    matches = [
+        c
+        for c in configs
+        if (window_kb is None or np.isclose(c.window_kb, window_kb))
+        and (r2_min is None or np.isclose(c.r2_min, r2_min))
+    ]
+    if len(matches) > 1:
+        # Only one of the two was given: the other takes its default (1000 kb / 0.1).
+        preferred = [
+            c
+            for c in matches
+            if (window_kb is not None or c.window_kb == 1000)
+            and (r2_min is not None or c.r2_min == 0.1)
+        ]
+        if len(preferred) == 1:
+            return preferred[0]
+        raise InputError(
+            f"Reference {name!r}: window_kb={window_kb}, r2_min={r2_min} matches several LD "
+            f"configurations ({[c.id for c in matches]}); give both window_kb and r2_min."
+        )
+    if matches:
+        return matches[0]
     raise InputError(
         f"Reference {name!r} has no LD configuration with window_kb={window_kb}, r2_min={r2_min}; "
         f"available: {[c.id for c in configs]}."
@@ -420,7 +448,9 @@ def load_reference(
     data_dir
         Where downloaded bundles live (default :func:`default_data_dir`).
     download
-        Permit downloading missing files. With ``False`` a missing file raises
+        Permit downloading missing files, now and later for the optional pieces that are
+        only fetched when first used (null replicates, pairwise :math:`r^2`, examples).
+        With ``False`` a missing file raises
         :class:`~genesis_gwas.exceptions.ReferenceDataError`.
     """
     ref_txt = os.fspath(reference)
@@ -492,6 +522,7 @@ def load_reference(
         ldscore=ldscore,
         pos_grch38=pos38,
         hm3_no_mhc=hm3,
+        download=download,
     )
 
 

@@ -80,8 +80,10 @@ class FitResult:
         ``n_iter`` is the number of EM iterations. ``converged`` says whether the reported
         estimate is a converged solution: the EM met its stopping rule, or Newton
         polishing reached a stationary point from where the EM ran out of iterations.
-        ``status`` is ``"converged"``, ``"max_iter"``, ``"stalled"`` or ``"legacy_break"``;
-        the status of the EM phase alone is kept in ``diagnostics["em_status"]``.
+        ``status`` is ``"converged"``, ``"max_iter"``, ``"stalled"``, ``"not_identified"``
+        (a three-component fit that collapsed onto the two-component model; the fit is
+        stopped early and flagged) or ``"legacy_break"``; the status of the EM phase alone
+        is kept in ``diagnostics["em_status"]``.
     n_snps, M, mean_n
         Number of GWAS markers analysed, number of reference SNPs, mean sample size.
     information, J, ds
@@ -300,11 +302,13 @@ class FitResult:
             f"  GWAS markers analysed (K)     : {self.n_snps:,}",
             f"  Reference-panel SNPs (M)      : {self.M:,}",
             f"  Mean sample size              : {self.mean_n:,.1f}",
-            f"  Optimisation                  : {self.status} after {self.n_iter:,} EM iteration(s), c0 = {self.c0}"
-            + self._polish_note(),
+            f"  Optimisation                  : {self._status_text()} after {self.n_iter:,} EM "
+            f"iteration(s), c0 = {self.c0}" + self._polish_note(),
             f"  Composite log-likelihood      : {self.loglik:,.4f}",
         ]
-        if math.isfinite(self.bic):
+        if self.diagnostics.get("degenerate"):
+            lines.append("  Model selection               : not available (model not identified)")
+        elif math.isfinite(self.bic):
             lines.append(
                 f"  Model selection               : BIC = {self.bic:,.3f}   AIC = {self.aic:,.3f}   "
                 f"d_s = {self.ds:.3f}"
@@ -339,9 +343,17 @@ class FitResult:
             lines += [f"    - {w}" for w in self.warnings]
         return "\n".join(lines)
 
+    def _status_text(self) -> str:
+        return {
+            "not_identified": "stopped (model not identified)",
+            "max_iter": "iteration limit reached",
+            "stalled": "stalled",
+            "legacy_break": "stopped by the original's early exit",
+        }.get(self.status, self.status)
+
     def _polish_note(self) -> str:
         pol = self.diagnostics.get("polish")
-        if not pol:
+        if not pol or self.status == "not_identified":
             return ""
         if pol.get("status") == "converged":
             return f"; {pol.get('n_steps', 0)} Newton step(s)"
@@ -376,6 +388,10 @@ class ModelComparison:
             f"Model comparison by {self.criterion.upper()} (lower is better)",
             f"  {'Model':<8}{'logLik':>18}{'d_s':>10}{'AIC':>18}{'BIC':>18}{'delta':>12}",
         ]
+
+        def num(v: float, spec: str) -> str:
+            return format(v, spec) if math.isfinite(v) else "n/a"
+
         for row in self.table:
             mark = (
                 "  <- selected"
@@ -383,8 +399,9 @@ class ModelComparison:
                 else ("  (not identified)" if row.get("degenerate") else "")
             )
             lines.append(
-                f"  {row['model']:<8}{row['loglik']:>18,.3f}{row['ds']:>10.3f}{row['aic']:>18,.3f}"
-                f"{row['bic']:>18,.3f}{row['delta']:>12.3f}{mark}"
+                f"  {row['model']:<8}{row['loglik']:>18,.3f}{num(row['ds'], '.3f'):>10}"
+                f"{num(row['aic'], ',.3f'):>18}{num(row['bic'], ',.3f'):>18}"
+                f"{num(row['delta'], '.3f'):>12}{mark}"
             )
         return "\n".join(lines)
 
@@ -404,14 +421,14 @@ def select_model(fits: list[FitResult], criterion: str = "bic") -> ModelComparis
     if len({f.n_snps for f in fits}) != 1:
         raise InputError("Models were fitted to different numbers of SNPs and cannot be compared")
     vals = [getattr(f, criterion) for f in fits]
-    if not all(math.isfinite(v) for v in vals):
+    # A degenerate fit (e.g. M3 whose two variance components merged) is not a valid
+    # candidate when a well-identified alternative exists; its criteria are undefined.
+    eligible = [i for i, f in enumerate(fits) if not f.diagnostics.get("degenerate", False)]
+    pool = eligible if eligible else list(range(len(fits)))
+    if not all(math.isfinite(vals[i]) for i in pool):
         raise InputError(
             f"{criterion.upper()} is unavailable for at least one fit (was the variance step skipped?)"
         )
-    # A degenerate fit (e.g. M3 whose two variance components merged) is not a valid
-    # candidate when a well-identified alternative exists.
-    eligible = [i for i, f in enumerate(fits) if not f.diagnostics.get("degenerate", False)]
-    pool = eligible if eligible else list(range(len(fits)))
     best_i = min(pool, key=lambda i: vals[i])
     table = [
         {

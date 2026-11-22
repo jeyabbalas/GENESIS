@@ -52,6 +52,10 @@ def test_ld_configuration_selection():
     assert np.all(alt.nstar <= base.nstar)  # narrower window and stricter threshold tag fewer SNPs
     with pytest.raises(InputError, match="no LD configuration"):
         load_reference("mini_chr22", window_kb=2000, r2_min=0.05)
+    # giving only one of the two: the other takes its default, or the unique match is used
+    assert load_reference("mini_chr22", r2_min=0.1).config.id == "w1000kb_r0.1"
+    assert load_reference("mini_chr22", window_kb=1000).config.id == "w1000kb_r0.1"
+    assert load_reference("mini_chr22", window_kb=500).config.id == "w500kb_r0.2"
     with pytest.raises(ReferenceDataError):
         alt.pair_r2()
     assert config_id(1000, 0.1) == "w1000kb_r0.1" and config_id(500.0, 0.05) == "w500kb_r0.05"
@@ -185,6 +189,9 @@ def test_fetch_is_lazy_verified_and_atomic(fake_remote, tmp_path):
     assert got == ["ld/w1000kb_r0.1.npz", "manifest.json", "snps.npz"]  # nothing else was fetched
     assert not list(root.rglob("*.part")) and not list(root.rglob("*.lock"))
 
+    offline = load_reference("eur_1kg_hm3", data_dir=store, download=False)
+    with pytest.raises(ReferenceDataError, match="downloads are disabled"):
+        offline.pair_r2()  # optional pieces are not fetched behind the user's back either
     ref = load_reference("eur_1kg_hm3", data_dir=store)
     assert ref.M == 15633
     assert ref.pair_r2().size == ref.neighborhoods.indices.size  # fetched on demand
