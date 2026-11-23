@@ -100,7 +100,7 @@ backend, comparing each with the single-threaded NumPy result:
 
 ```console
 $ genesis doctor
-genesis-gwas 0.1.0
+genesis-gwas 0.2.0
   python 3.12.13  numpy 2.5.5  scipy 1.18.1  torch 2.15.0
   platform: macOS-27.0.1-arm64-arm-64bit
   CPUs available to this process: 18 (machine: 18)
@@ -164,67 +164,68 @@ the installation should not be used.
 ## Reference data
 
 Analyses need an LD reference: for every SNP of a reference panel, the number of SNPs
-it tags, its LD score and its tagging neighbourhood. The European reference of the
-original software (1000 Genomes Phase 3, 489 individuals, 1,070,777 HapMap3 SNPs) is
-downloaded automatically the first time it is used and cached. To fetch it explicitly:
+it tags, its LD score and its tagging neighbourhood. Three references, all computed
+from 1000 Genomes Phase 3 genotypes, are available for download:
+
+| Reference | Alias | Population | Panel | SNPs | Source |
+|---|---|---|---:|---:|---|
+| `eur_1kg_hm3` (the default) | `EUR` | European | 489 | 1,070,777 | the original GENESIS package |
+| `eas_1kg_hm3` | `EAS` | East Asian | 504 | 953,834 | the authors' GENESISasian package |
+| `afr_1kg_hm3` | `AFR` | African ancestry | 661 | 1,025,309 | built with this software |
+
+The reference an analysis names (`--reference`; European if none is named) is
+downloaded automatically the first time it is used and cached. To fetch one explicitly:
 
 ```bash
-genesis data fetch                       # default configuration: 32 MB
-genesis data list                        # what is installed, and where
+genesis data fetch                       # European, default configuration: 32 MB
+genesis data fetch AFR                   # African ancestry: 30 MB
+genesis data fetch EAS                   # East Asian: 27 MB
+genesis data list --summary              # what is installed, and where
 ```
 
-:::{dropdown} Output of `genesis data list` after `genesis data fetch`
+:::{dropdown} Output of `genesis data list --summary` after `genesis data fetch`
 ```text
 Data directory: ~/.cache/genesis-gwas
 
 eur_1kg_hm3 v1.0: 1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05
+  population EUR, 1,070,777 SNPs, 489 samples, GRCh37
   installed 2/22 files (33 of 504 MB) in ~/.cache/genesis-gwas/eur_1kg_hm3/1.0
   LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
-   [ ] examples/height_giant2010.sumstats.tsv.gz            12.6 MB
-   [ ] ld/w1000kb_r0.05.npz                                 27.0 MB
-   [x] ld/w1000kb_r0.1.npz                                  21.4 MB
-   [ ] ld/w1000kb_r0.2.npz                                  17.2 MB
-   [ ] ld/w2000kb_r0.05.npz                                 27.3 MB
-   [ ] ld/w2000kb_r0.1.npz                                  21.5 MB
-   [ ] ld/w2000kb_r0.2.npz                                  17.2 MB
-   [ ] ld/w500kb_r0.05.npz                                  26.3 MB
-   [ ] ld/w500kb_r0.1.npz                                   21.2 MB
-   [ ] ld/w500kb_r0.2.npz                                   17.1 MB
-   [ ] nullz/nullz_000-009.npy                              21.4 MB
-   [ ] nullz/nullz_010-019.npy                              21.4 MB
-   [ ] nullz/nullz_020-029.npy                              21.4 MB
-   [ ] nullz/nullz_030-039.npy                              21.4 MB
-   [ ] nullz/nullz_040-049.npy                              21.4 MB
-   [ ] nullz/nullz_050-059.npy                              21.4 MB
-   [ ] nullz/nullz_060-069.npy                              21.4 MB
-   [ ] nullz/nullz_070-079.npy                              21.4 MB
-   [ ] nullz/nullz_080-089.npy                              21.4 MB
-   [ ] nullz/nullz_090-099.npy                              21.4 MB
-   [ ] pairld/w1000kb_r0.1.npz                              69.5 MB
-   [x] snps.npz                                             11.1 MB
+
+eas_1kg_hm3 v1.0: 1000 Genomes Phase 3, EAS (n=504), HapMap3 SNPs with MAF>=0.05
+  population EAS, 953,834 SNPs, 504 samples, GRCh37
+  installed 0/21 files (0 of 411 MB) in ~/.cache/genesis-gwas/eas_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
+
+afr_1kg_hm3 v1.0: 1000 Genomes Phase 3, AFR (n=661), HapMap3 SNPs outside the MHC with MAF>=0.05
+  population AFR, 1,025,309 SNPs, 661 samples, GRCh37
+  installed 0/21 files (0 of 439 MB) in ~/.cache/genesis-gwas/afr_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
 
 Packaged (no download needed): mini_chr22
 ```
 :::
 
-Only what an analysis needs is downloaded:
+Without `--summary` the listing also shows every file of each reference and whether it
+is installed. Only what an analysis needs is downloaded:
 
-| Component | `--components` | Size | Needed for |
-|---|---|---:|---|
-| SNP table + LD configuration 1 Mb / $r^2 \ge 0.1$ | `default` | 32 MB | fitting with the paper's primary settings |
-| all nine LD configurations (0.5 / 1 / 2 Mb × 0.05 / 0.1 / 0.2) | `ld` | 196 MB | sensitivity analyses (`--ld-window-kb`, `--ld-r2`) |
-| one other configuration | e.g. `w2000kb_r0.05` | 17–27 MB | |
-| LD-correlated null statistics (100 replicates) | `nullz` | 214 MB | QQ-plot envelopes, `future_gc` |
-| pairwise $r^2$ | `pairld` | 70 MB | `future_gc`, `simulate_ld_sumstats` |
-| GIANT height example | `examples` | 13 MB | the tutorial |
-| everything | `all` | 504 MB | |
+| Component | `--components` | EUR | EAS | AFR | Needed for |
+|---|---|---:|---:|---:|---|
+| SNP table + LD configuration 1 Mb / $r^2 \ge 0.1$ | `default` | 32 MB | 27 MB | 30 MB | fitting with the paper's primary settings |
+| all nine LD configurations (0.5 / 1 / 2 Mb × 0.05 / 0.1 / 0.2) | `ld` | 196 MB | 153 MB | 183 MB | sensitivity analyses (`--ld-window-kb`, `--ld-r2`) |
+| one other configuration | e.g. `w2000kb_r0.05` | 17–27 MB | 14–20 MB | 15–26 MB | |
+| LD-correlated null statistics (100 replicates) | `nullz` | 214 MB | 191 MB | 205 MB | QQ-plot envelopes, `future_gc` |
+| pairwise $r^2$ | `pairld` | 70 MB | 57 MB | 41 MB | `future_gc`, `simulate_ld_sumstats` |
+| GIANT height example | `examples` | 13 MB | – | – | the tutorial |
+| everything | `all` | 504 MB | 411 MB | 439 MB | |
 
 Every download is verified against a SHA-256 checksum that ships inside the package,
 interrupted downloads resume, and a file appears under its final name only once it is
 complete and verified — so a partial or corrupted download cannot be used by accident.
 Components that an analysis needs but that are missing (for example the null statistics
 for `--qq`) are fetched on demand. The files are release assets of the GitHub
-repository (tag `refdata-v1`); set `GENESIS_DATA_URL` to download them from a mirror
+repository (tags `refdata-v1` for the European reference and `refdata-v2` for the
+others); set `GENESIS_DATA_URL` to download them from a mirror
 that serves the same file names.
 
 ### Where the data go
@@ -267,10 +268,14 @@ same for one command.
 
 ### Other populations
 
-The bundled reference is European. For other ancestries, build a reference from PLINK
-genotypes of an ancestry-matched panel with `genesis ld build` (a genome-wide HapMap3
-build takes about a minute) and pass the resulting directory with `--reference`; see
-the tutorial chapter on [custom LD references](../tutorial/index.md).
+For a population other than the three above, build a reference from the genotypes of
+an ancestry-matched panel: `genesis ld from-vcf` converts VCF files (for example those
+of the 1000 Genomes Project) to PLINK files, and `genesis ld build` computes the
+reference from them (a genome-wide HapMap3 build takes one to two minutes). Pass the
+resulting directory with `--reference`. The tutorial chapter on
+[other ancestries](../tutorial/other-ancestries.md) goes through every step; the
+HapMap3 SNP list it uses is the file `hapmap3_noMHC.snplist.gz` of the `refdata-v2`
+release.
 
 ## Upgrading and uninstalling
 

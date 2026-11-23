@@ -62,6 +62,7 @@ rm(ti, pl, e, x); invisible(gc())
 # ---- every LD configuration ----------------------------------------------
 for (w in c("0.5", "1", "2")) {
   for (cc in c("0.05", "0.1", "0.2")) {
+    if (!file.exists(file.path(data_dir, sprintf("LDwindow%sMB_cutoff%s.RData", w, cc)))) next
     x <- load_one(sprintf("LDwindow%sMB_cutoff%s", w, cc))$dataLD
     cfg <- sprintf("w%dkb_r%s", as.integer(round(as.numeric(w) * 1000)), cc)
     m <- match(rsids, as.character(x$SNPname))

@@ -475,12 +475,55 @@ def cmd_ld_build(args: argparse.Namespace) -> int:
         seed=args.seed,
         population=args.population,
         genome_build=args.genome_build,
+        panel=args.panel,
+        liftover_chain=args.liftover_chain,
         version=args.bundle_version,
         device=device,
         backend=args.backend,
         threads=args.threads,
     )
     log.info("Reference bundle written to %s; use it with --reference %s", out, out)
+    return 0
+
+
+def cmd_ld_from_vcf(args: argparse.Namespace) -> int:
+    """``genesis ld from-vcf``."""
+    from genesis_gwas.ld import vcf_to_plink
+
+    _configure_logging(args)
+    results = vcf_to_plink(
+        args.vcf,
+        args.out,
+        snps=args.snps,
+        positions=args.positions,
+        keep=args.keep,
+        chromosomes=args.chromosomes,
+        processes=args.processes,
+    )
+    total = {
+        k: sum(r[k] for r in results)
+        for k in (
+            "records",
+            "written",
+            "not_listed",
+            "not_biallelic_snp",
+            "duplicate_id",
+            "duplicate_position",
+            "no_gt",
+        )
+    }
+    log.info(
+        "Wrote %s SNPs for %d samples in %d fileset(s). Set aside: %s not on the SNP list, "
+        "%s not biallelic SNPs, %s duplicated identifiers or positions, %s without genotypes.",
+        f"{total['written']:,}",
+        results[0]["n_samples"],
+        len(results),
+        f"{total['not_listed']:,}",
+        f"{total['not_biallelic_snp']:,}",
+        f"{total['duplicate_id'] + total['duplicate_position']:,}",
+        f"{total['no_gt']:,}",
+    )
+    log.info("Next: genesis ld build --bfile '%s' ...", args.out)
     return 0
 
 
@@ -494,7 +537,7 @@ def cmd_data_fetch(args: argparse.Namespace) -> int:
     _configure_logging(args)
     comps = [c.strip() for c in args.components.split(",") if c.strip()]
     root = fetch_bundle(args.bundle, comps if len(comps) > 1 else comps[0], data_dir=args.data_dir)
-    log.info("Reference %s is ready in %s", args.bundle, root)
+    log.info("Reference %s is ready in %s", root.parent.name, root)
     print(root)
     return 0
 
@@ -516,9 +559,16 @@ def cmd_data_list(args: argparse.Namespace) -> int:
         total = sum(v["bytes"] for v in files.values())
         print(f"\n{name} v{manifest['version']}: {manifest['panel']}")
         print(
+            f"  population {manifest.get('population', '?')}, "
+            f"{int(manifest.get('n_snps', 0)):,} SNPs, {manifest.get('n_ref', '?')} samples, "
+            f"{manifest.get('genome_build', '?')}"
+        )
+        print(
             f"  installed {len(have)}/{len(files)} files ({size / 1e6:.0f} of {total / 1e6:.0f} MB) in {root}"
         )
         print("  LD configurations: " + ", ".join(c["id"] for c in manifest["ld_configs"]))
+        if args.summary:
+            continue
         for rel in sorted(files):
             mark = "x" if rel in have else " "
             print(f"   [{mark}] {rel:<48} {files[rel]['bytes'] / 1e6:8.1f} MB")

@@ -13,8 +13,8 @@ type: software
 authors:
   - given-names: Jeya Balaji
     family-names: Balasubramanian
-version: 0.1.0
-date-released: "2026-11-21"
+version: 0.2.0
+date-released: "2026-11-23"
 license: GPL-2.0-or-later
 repository-code: "https://github.com/jeyabbalas/GENESIS"
 url: "https://jeyabbalas.github.io/GENESIS/"

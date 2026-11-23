@@ -246,3 +246,52 @@ def test_stale_lock_is_broken(fake_remote, tmp_path):
 
 def test_top_level_exports():
     assert gg.load_reference is load_reference and callable(gg.fetch_bundle)
+
+
+# ------------------------------------------------------- downloadable references
+@pytest.mark.parametrize(
+    "name,population,n_ref,n_snps",
+    [
+        ("eur_1kg_hm3", "EUR", 489, 1_070_777),
+        ("eas_1kg_hm3", "EAS", 504, 953_834),
+        ("afr_1kg_hm3", "AFR", 661, 1_025_309),
+    ],
+)
+def test_packaged_manifests_of_downloadable_references(name, population, n_ref, n_snps):
+
+    assert name in download.known_bundles()
+    m = download.load_packaged_manifest(name)
+    assert (m["name"], m["population"], m["n_ref"], m["n_snps"]) == (
+        name,
+        population,
+        n_ref,
+        n_snps,
+    )
+    assert m["genome_build"] == "GRCh37" and m["format_version"] == 1
+    ids = [c["id"] for c in m["ld_configs"]]
+    assert len(ids) == 9 and "w1000kb_r0.1" in ids and len(set(ids)) == 9
+    # every file a configuration or the null replicates refer to has a checksum
+    for c in m["ld_configs"]:
+        assert c["file"] in m["files"] and (c["pairld"] is None or c["pairld"] in m["files"])
+    default = next(c for c in m["ld_configs"] if c["id"] == "w1000kb_r0.1")
+    assert default["pairld"] is not None  # needed to simulate with LD
+    assert m["nullz"]["n_replicates"] == 100 and all(f in m["files"] for f in m["nullz"]["files"])
+    assert "snps.npz" in m["files"]
+    assert all(len(f["sha256"]) == 64 and f["bytes"] > 0 for f in m["files"].values())
+
+
+def test_population_short_names(tmp_path):
+
+    assert download.resolve_bundle_name("AFR") == "afr_1kg_hm3"
+    assert download.resolve_bundle_name(" eas ") == "eas_1kg_hm3"
+    assert download.resolve_bundle_name("Eur") == "eur_1kg_hm3"
+    assert download.resolve_bundle_name("EAS_1KG_HM3") == "eas_1kg_hm3"
+    assert download.resolve_bundle_name("my_panel") == "my_panel"
+    assert download.asset_url("AFR", "snps.npz").endswith("/refdata-v2/afr_1kg_hm3-1.0-snps.npz")
+    assert download.asset_url("eur", "snps.npz").endswith("/refdata-v1/eur_1kg_hm3-1.0-snps.npz")
+    # a short name resolves to the same place as the full name, and nothing is fetched here
+    for short, full in (("AFR", "afr_1kg_hm3"), ("EAS", "eas_1kg_hm3")):
+        with pytest.raises(ReferenceDataError, match=full):
+            load_reference(short, data_dir=tmp_path, download=False)
+    with pytest.raises(ReferenceDataError, match="afr_1kg_hm3"):
+        load_reference("SAS", data_dir=tmp_path)  # unknown: the message lists what exists

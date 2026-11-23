@@ -1,16 +1,26 @@
 # Reference-data conversion tools
 
-These scripts convert the reference data that upstream GENESIS ships as `.RData` files
-(<https://github.com/yandorazhang/GENESIS>, commit
-`e4e6894d2e11ece6715d0572b0febceff1480f85`, about 1.6 GB inside the R package) into a compact,
-checksummed **reference bundle**. They are provenance tooling: users of the package never
+These scripts convert the reference data that the original R packages ship as `.RData` files
+into compact, checksummed **reference bundles**:
+
+| Bundle | Source | Population | SNPs | LD configurations |
+|---|---|---|---|---|
+| `eur_1kg_hm3` | [GENESIS](https://github.com/yandorazhang/GENESIS), commit `e4e6894d2e11ece6715d0572b0febceff1480f85` (about 1.6 GB of data) | 1000 Genomes EUR, n = 489 | 1,070,777 | 9 (0.5/1/2 Mb × r² ≥ 0.05/0.1/0.2) |
+| `eas_1kg_hm3` | [GENESISasian](https://github.com/yandorazhang/GENESISasian), commit `4df90ac6ef3ea84219110187ef4ef5b5a79b83e6` (about 1.1 GB of data) | 1000 Genomes EAS, n = 504 | 953,834 | 1 (1 Mb, r² ≥ 0.1) upstream; 8 more computed from genotypes with `add_ld_configs.py` |
+
+The third downloadable reference, `afr_1kg_hm3`, has no upstream source: it is the output of
+`genesis ld from-vcf` and `genesis ld build` (see "The African-ancestry bundle" below).
+
+The same scripts build both; `build_bundle.py --profile eur|eas` selects the source
+(`refdata_common.PROFILES`), and the R exporters skip LD tables a source does not ship. They are provenance tooling: users of the package never
 need to run them, because the finished bundle is distributed as release assets.
 
 | Script | Language | What it does |
 |---|---|---|
 | `export_rdata.R` | base R | Dumps every upstream object to little-endian binaries / text (`raw/`). |
 | `spotcheck_export.R` | base R | Writes all upstream fields *by rsID* for ~55 SNPs; an independent code path used only for verification. |
-| `build_bundle.py` | Python + numpy | Assembles the full bundle `eur_1kg_hm3` from `raw/`, including GRCh38 positions. |
+| `build_bundle.py` | Python + numpy | Assembles a full bundle (`--profile eur` → `eur_1kg_hm3`, `--profile eas` → `eas_1kg_hm3`) from `raw/`, including GRCh38 positions. |
+| `add_ld_configs.py` | Python + numpy | Adds LD configurations to a converted bundle by recomputing them from genotypes, after checking that the recomputed copy of every configuration the bundle already holds agrees with the stored one. Used for the eight extra configurations of `eas_1kg_hm3`. |
 | `make_mini_bundle.py` | Python + numpy | Cuts a one-chromosome test bundle (`mini_chr22`) out of the full one. |
 | `verify_bundle.py` | Python + numpy | Checks a bundle: internal invariants, against `raw/`, against the spot check, and against a parent bundle. |
 | `check_liftover_ensembl.py` | Python + numpy, network | Compares `pos` / `pos_grch38` with Ensembl's rsID coordinates. |
@@ -44,6 +54,68 @@ $PY check_liftover_ensembl.py --bundle $W/bundle/eur_1kg_hm3 --chain hg19ToHg38.
 any failure. Run without `--raw` / `--spotcheck` it tests only bundle-internal invariants,
 so it also works on bundles built for other reference panels.
 
+### The East Asian bundle
+
+```bash
+UPA=/path/to/GENESISasian/data                   # clone of yandorazhang/GENESISasian at 4df90ac
+Rscript --vanilla export_rdata.R     $UPA $W/raw_eas                 # ~1.5 min, 1.4 GB
+Rscript --vanilla spotcheck_export.R $UPA $W/raw_spotcheck_eas.tsv
+$PY build_bundle.py  --profile eas --raw $W/raw_eas --chain hg19ToHg38.over.chain.gz --out $W/bundle/eas_1kg_hm3   # ~15 s
+$PY verify_bundle.py --bundle $W/bundle/eas_1kg_hm3 --raw $W/raw_eas --spotcheck $W/raw_spotcheck_eas.tsv
+```
+
+The result is 13 data files, 262 MiB: `snps.npz` (9.9 MB), `ld/w1000kb_r0.1.npz` (16.9 MB),
+`pairld/w1000kb_r0.1.npz` (57.1 MB) and ten `nullz` files (19.1 MB each). It carries no
+example GWAS: the `heightGWAS` object of GENESISasian is the European height GWAS of GENESIS
+(byte-identical `.RData`), so it is not an example for this reference. Rebuilding
+`eur_1kg_hm3` with the generalised scripts reproduces its `manifest.json` byte for byte.
+
+GENESISasian ships one LD configuration. The other eight of the distributed bundle were
+computed from the genotypes the upstream table was derived from — the 504 `EAS` samples of
+the 1000 Genomes Phase 3 integrated call set v5a, converted with `genesis ld from-vcf`:
+
+```bash
+$PY add_ld_configs.py --bundle $W/bundle/eas_1kg_hm3 --plink "$KG/kg3.{chrom}" --keep eas.samples \
+    --window-kb 500,1000,2000 --r2 0.05,0.1,0.2 \
+    --genotype-source "1000 Genomes Project Phase 3 integrated call set v5a (release 20130502), ..."
+$PY verify_bundle.py --bundle $W/bundle/eas_1kg_hm3
+```
+
+The script recomputes the stored 1 Mb / 0.1 table as well (`compute_ld`, `round_r2=6`) and
+writes nothing unless it reproduces the upstream one. In the run that produced the bundle:
+`N*` equal and tagging list identical for all 953,834 SNPs, 42,020,856 ordered pairs in
+both, largest LD-score difference 4.0e-6, 41 SNPs with a difference above 1e-9 (decimal
+ties at the sixth significant digit, as for the one tie pair of the European tables). The
+existing files are not modified; the agreement and the provenance of the computed
+configurations are recorded in the manifest under `computed_ld_configs`. The distributed
+bundle then has 21 data files, 411 MB.
+
+### The African-ancestry bundle
+
+`afr_1kg_hm3` is built, not converted. Inputs: the 22 autosomal VCF files of the 1000 Genomes
+Phase 3 integrated call set v5a (release 20130502; 15.5 GB), the project's sample panel
+`integrated_call_samples_v3.20130502.ALL.panel`, the SNP list `hapmap3_noMHC.snplist.gz`
+(the 1,215,001 identifiers of upstream's `w_hm3.noMHC.snplist` minus the 108 that lie in
+chr6:26–34 Mb in GRCh37; 1,214,893 identifiers), and the UCSC chain below.
+
+```bash
+genesis ld from-vcf --vcf "$VCF/ALL.chr{chrom}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" \
+    --snps hm3_union.snplist --out "$KG/kg3.{chrom}"        # the list above plus the MHC SNPs of the EUR and EAS bundles
+awk '$3 == "AFR" {print $1}' integrated_call_samples_v3.20130502.ALL.panel > afr.samples   # 661 samples
+genesis ld build --bfile "$KG/kg3.{chrom}" --keep afr.samples --snps hapmap3_noMHC.snplist \
+    --window-kb 500,1000,2000 --r2 0.05,0.1,0.2 --n-null 100 --name afr_1kg_hm3 --population AFR \
+    --panel '1000 Genomes Phase 3, AFR (n=661), HapMap3 SNPs outside the MHC with MAF>=0.05' \
+    --genome-build GRCh37 --liftover-chain hg19ToHg38.over.chain.gz --out $W/bundle/afr_1kg_hm3
+$PY verify_bundle.py --bundle $W/bundle/afr_1kg_hm3
+```
+
+1,025,309 SNPs (of the 1,203,399 list SNPs written by the conversion, 173,216 have MAF below
+0.05 in the 661 samples and 4,874 are monomorphic), nine LD configurations with exact r²
+(no rounding), pairwise r² for 1 Mb / 0.1, 100 null replicates (*t* statistics, seed 123),
+GRCh38 positions for all but 580 SNPs; 21 data files, 439 MB. The settings and filter
+counts are recorded in the manifest under `source`. The bundle has no HapMap3 flag and
+contains no SNP in the MHC interval.
+
 ### Byte reproducibility
 
 `np.savez_compressed` stamps each zip member with the current time, so its output is not
@@ -59,7 +131,8 @@ valid compressed bytes; the *array contents* are identical regardless, and
 ## Bundle format (`format_version` 1)
 
 All arrays are aligned to the **canonical SNP order**: sorted by `(chrom, pos, rsid)`
-ascending. `M` is the number of reference SNPs (1,070,777 for `eur_1kg_hm3`).
+ascending. `M` is the number of reference SNPs (1,070,777 for `eur_1kg_hm3`, 953,834 for
+`eas_1kg_hm3`).
 
 ```
 <bundle>/
@@ -90,7 +163,7 @@ ascending. `M` is the number of reference SNPs (1,070,777 for `eur_1kg_hm3`).
 | `indptr` | `int64 (M+1,)` | CSR row pointer |
 | `indices` | `int32 (nnz,)` | CSR column indices = canonical rows of the tagged SNPs (upstream `TaggingSNPs`), ascending within a row, self included |
 | `window_kb`, `r2_min` | `float64` scalars | configuration |
-| `n_ref` | `int64` scalar | reference sample size (489) |
+| `n_ref` | `int64` scalar | reference sample size (489 for EUR, 504 for EAS) |
 
 **`pairld/w1000kb_r0.1.npz`**: `r2_u16`, `uint16 (nnz,)`, aligned element for element with
 `indices` of the matching `ld/` file; `r2 = r2_u16 / 65535`. Upstream ships pairwise r²
@@ -110,7 +183,9 @@ and `files` (relative path → `sha256`, `bytes`).
 
 ## What the verification established
 
-Numbers are from the run that produced the bundle (`verify_bundle.py`, all checks passed).
+Numbers are from the runs that produced the bundles (`verify_bundle.py`, all checks passed).
+
+### European bundle (`eur_1kg_hm3`)
 
 * All nine upstream tables hold the same 1,070,777 SNPs in the same row order; rsIDs are
   unique and no two SNPs share a `(chrom, pos)`.
@@ -143,6 +218,51 @@ Numbers are from the run that produced the bundle (`verify_bundle.py`, all check
   through reverse-strand chain blocks) and 311 of 311 agree on GRCh37. Ensembl has a unique
   same-chromosome GRCh38 location for 570 of the 592 unlifted SNPs
   (`ensembl_grch38_lookup.py`), should a caller want to fill them in.
+
+### East Asian bundle (`eas_1kg_hm3`)
+
+`verify_bundle.py --raw --spotcheck`: 56 checks, all passed.
+
+* 953,834 SNPs on chromosomes 1–22, unique rsIDs, no shared `(chrom, pos)`. The 100 null
+  replicates hold the same SNP set as the LD table, in a different row order (matched by rsID).
+* `nstar` (min 1, median 35, mean 44.05, max 399) equals the row length; `ldscore` is a
+  bit-exact copy; neighbour lists equal `TaggingSNPs` and `TaggingSNPinx` (42,020,856 ordered
+  pairs). Self present once in every row, relation symmetric (0 asymmetric pairs),
+  r²(i,j) = r²(j,i), all neighbours on the same chromosome.
+* Largest distance within a row is 999,994 bp; no pair lies at exactly 1,000,000 bp, so
+  this table cannot show whether the window is inclusive (the European tables do).
+* `ldscore_k = Σ [ r² − (1 − r²)/(n_ref − 2) ]` with **`n_ref = 504`** — all East Asian
+  samples of 1000 Genomes Phase 3 — reproduces upstream to 5.7e-13 on every row (489, 481
+  or 503 do not fit).
+* All r² have at most six decimals; the minimum is exactly `0.1` (150 pairs), none below.
+* `uint16` quantisation of r² changes LD scores recomputed from it by at most 9.4e-4
+  (3.4e-5 relative); `float16` null z-scores differ by at most 1.95e-3. Over the 100
+  replicates the means lie within ±0.015 and the SDs within 0.992–1.054 (European
+  replicates: SDs 0.994–1.033).
+* 952,104 SNPs carry the HapMap3-no-MHC flag; 1,775 lie in chr6:26–34 Mb. The rule that
+  selected the SNP set was afterwards checked against the 1000 Genomes genotypes: "HapMap3
+  SNPs with MAF ≥ 0.05 in the 504 samples" (smallest minor-allele count kept 51 of 1,008)
+  selects 952,124 SNPs of the HapMap3-no-MHC list, among them all 952,104 flagged SNPs of
+  the bundle; the 20 further SNPs it selects are not in the upstream reference, and the
+  remaining 1,730 SNPs of the bundle are MHC SNPs that the list omits.
+* The upstream null replicates of this package are coded towards the minor allele rather
+  than a fixed reference allele. That does not affect their use (QQ envelopes and
+  `future_gc` depend on the joint distribution only up to a sign per SNP that is the same
+  in every replicate), but anything that combines them with signed LD from genotypes has
+  to align the signs first.
+* GRCh38: 953,312 lifted, 522 are `-1` (426 in chain gaps, 96 lift to another sequence).
+* By-rsID spot check (55 SNPs: LD row, pairwise r², six null replicates, HapMap3 flag): no
+  mismatch.
+* Numerical parity of fits with the GENESISasian R package on this bundle is tested in
+  `tests/test_full_scale.py` (fixtures `eas_sim_m{2,3}.json`, `tools/upstream_oracle`).
+
+### Distributed bundles, internal checks
+
+`verify_bundle.py --bundle DIR` without `--raw` runs the checks that need no upstream
+export (the internal invariants of the format). On the three distributed bundles:
+126 checks passed for `eur_1kg_hm3`, 125 for `eas_1kg_hm3` and 125 for `afr_1kg_hm3`; none
+failed. The columns `hm3_no_mhc` and `pos_grch38` are optional for the script, since a built
+bundle need not have them.
 
 ## External resources
 

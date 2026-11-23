@@ -106,8 +106,9 @@ $\beta_k = \sum_m \beta^{(J)}_m \rho_{km}$, on which the model is built.
 **1000 Genomes Project Consortium (2015).** Auton A, Abecasis GR, Altshuler DM, Durbin RM,
 *et al.* A global reference for human genetic variation. *Nature* **526**, 68–74.
 [doi:10.1038/nature15393](https://doi.org/10.1038/nature15393)\
-→ The Phase 3 genotypes from which the bundled European LD reference (489 individuals)
-was computed, and the natural source of panels for other ancestries.
+→ The Phase 3 genotypes from which the European (489 individuals), East Asian (504)
+and African-ancestry (661) LD references were computed, and the natural source of
+panels for other ancestries.
 
 (ref-altshuler2010)=
 **International HapMap 3 Consortium (2010).** Integrating common and rare genetic variation
@@ -324,11 +325,18 @@ Python. *Nature Methods* **17**, 261–272.
 
 - Original GENESIS R package: <https://github.com/yandorazhang/GENESIS> (commit
   `e4e6894`, the version this implementation was validated against).
+- Original GENESISasian R package: <https://github.com/yandorazhang/GENESISasian>
+  (commit `4df90ac`), the source of the East Asian reference.
+- 1000 Genomes Project Phase 3 integrated call set v5a (release 20130502), VCF files
+  and sample panel, from which the African-ancestry reference and the additional LD
+  configurations of the East Asian reference were computed:
+  <https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/> (mirrored in the AWS
+  Open Data registry, <https://registry.opendata.aws/1000-genomes/>).
 - LDSC 1000 Genomes Phase 3 PLINK files (489 European samples) used to validate the LD
   builder: S-LDSC reference files, Zenodo record
   [10515792](https://zenodo.org/records/10515792).
 - UCSC liftOver chain `hg19ToHg38.over.chain.gz`, used for the GRCh38 positions of the
-  bundled reference: <https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/>.
+  downloadable references: <https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/>.
 - Confluence project (NCI Division of Cancer Epidemiology and Genetics):
   <https://dceg.cancer.gov/research/cancer-types/breast-cancer/confluence-project>.
 - NIH HPC (Biowulf) user documentation: <https://hpc.nih.gov/>.

@@ -1,11 +1,11 @@
 $ genesis fit height_giant2010.sumstats.tsv.gz --out results/height --qq --posterior \
       --project 250000,500000,1000000
-19:41:41  genesis-gwas 0.1.0
+19:41:41  genesis-gwas 0.2.0
 19:41:41  Command: genesis fit height_giant2010.sumstats.tsv.gz --out results/height --qq --posterior --project 250000,500000,1000000
 19:41:42  Reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
 19:41:43  Read 1,037,172 rows from height_giant2010.sumstats.tsv.gz (Z from Z; N from N)
 19:41:44  QC: not in the LD reference (eur_1kg_hm3, matched on rsid)     removed     95,488,    941,684 remain
-19:41:44  Prepared 941,684 SNPs for analysis (of 1,037,172 read)
+19:41:44  Prepared 941,684 SNPs for analysis (of 1,037,172 read), matched to the reference by identifier
 19:41:44  Fitting the two-component model ...
 19:41:44  Compute: numpy on CPU, 18 thread(s); 941,684 SNPs
 19:41:44    M2           iter     0  logLik 3948056.4010  c0 10  [1.01486e-02  3.43591e-05  6.61204e-07]

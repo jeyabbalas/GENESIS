@@ -190,6 +190,17 @@ against 1.54), which is a check of the fit in its own right. The values for larg
 studies say how much inflation to expect from polygenicity alone, and therefore how
 misleading it would be to "correct" it away by genomic control.
 
+:::{admonition} With a reference other than the European one
+:class: note
+
+Everything in this chapter works the same with `eas_1kg_hm3`, `afr_1kg_hm3` or a
+reference you built, as long as the functions receive the fitted model: a `FitResult`
+carries the $M$ of its reference. Called with bare parameter values instead,
+`project`, `n_in_interval`, `effect_density`, `effect_cdf`, `simulate_sumstats` and
+`polyrisk_predict` assume $M = 1{,}070{,}777$, the European reference; pass `M=`
+(953,834 for `eas_1kg_hm3`, 1,025,309 for `afr_1kg_hm3`) in that case.
+:::
+
 ## Summary of commands
 
 | Question | Python | Command line |

@@ -18,7 +18,8 @@ page.
 | Per-SNP local false-discovery rates and shrunken effects | `genesis posterior` |
 | QQ plot of observed P-values against the fitted model | `genesis qq` |
 | Plot effect-size densities or projection curves of one or more fits | `genesis plot` |
-| Build an LD reference for another population from PLINK files | `genesis ld build` |
+| Use the East Asian or African-ancestry reference | `genesis fit --reference EAS`, `--reference AFR` |
+| Build an LD reference for another population from VCF or PLINK files | `genesis ld from-vcf`, `genesis ld build` |
 | Write a Biowulf swarm file that fits many traits | `genesis swarm` |
 
 ## Typical invocations
@@ -46,11 +47,16 @@ genesis posterior height.tsv.gz --fit results/height.best.json --out results/hei
 genesis qq        height.tsv.gz --fit results/height.best.json --out results/height
 genesis plot density M2=results/height.M2.json M3=results/height.M3.json --out results/density.png
 
-# Another ancestry: build a reference from PLINK files (one prefix, or one per
-# chromosome with {chrom}), then use it
-genesis ld build --bfile 1000G.AFR.chr{chrom} --snps hapmap3.snplist --n-null 100 \
-    --out refs/afr_1kg_hm3 --name afr_1kg_hm3
-genesis fit trait_afr.tsv.gz --reference refs/afr_1kg_hm3 --out results/trait_afr
+# East Asian or African ancestry: ready-made references, downloaded on first use
+genesis fit trait_eas.tsv.gz --reference EAS --out results/trait_eas
+genesis fit trait_afr.tsv.gz --reference AFR --out results/trait_afr
+
+# Any other population: convert VCF files of a panel to PLINK files, build a
+# reference from the chosen samples ({chrom} stands for the chromosome number), use it
+genesis ld from-vcf --vcf 'ALL.chr{chrom}.vcf.gz' --snps hapmap3_noMHC.snplist --out 'plink/kg.{chrom}'
+genesis ld build --bfile 'plink/kg.{chrom}' --keep sas.samples --snps hapmap3_noMHC.snplist \
+    --n-null 100 --liftover-chain hg19ToHg38.over.chain.gz --out refs/sas --name sas --population SAS
+genesis fit trait_sas.tsv.gz --reference refs/sas --out results/trait_sas
 
 # Many traits on Biowulf: write a swarm file (nothing is submitted)
 genesis swarm sumstats/*.tsv.gz --outdir results -- --qq --project 500000,1000000

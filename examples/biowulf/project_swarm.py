@@ -12,8 +12,10 @@ For every input that has no ``PROJECT/results/<ANCESTRY>/<trait>.best.json`` yet
 after a swarm and the file contains exactly the fits that are still missing.
 
 The LD reference of an ancestry is ``PROJECT/ref/<ANCESTRY>`` when that directory holds a
-bundle; ancestry ``EUR`` otherwise uses the bundled ``eur_1kg_hm3``; anything else is
-skipped with a message. ``--reference ANC=NAME_OR_DIR`` overrides the choice.
+bundle; otherwise the ancestries ``EUR``, ``EAS`` and ``AFR`` use the downloadable
+references ``eur_1kg_hm3``, ``eas_1kg_hm3`` and ``afr_1kg_hm3`` (fetch them first with
+fetch_refdata.sh); anything else is skipped with a message.
+``--reference ANC=NAME_OR_DIR`` overrides the choice.
 
 Options for ``genesis fit`` come from two places and are combined:
 
@@ -47,6 +49,10 @@ from pathlib import Path
 from genesis_gwas.hpc.swarm import trait_name
 
 IGNORED_SUFFIXES = (".tbi", ".csi", ".md5", ".sha256", ".log", ".md", ".pdf", ".png", ".json")
+
+
+# Ancestry labels served by a downloadable reference when PROJECT/ref/<ANCESTRY> is absent.
+DOWNLOADABLE = {"EUR": "eur_1kg_hm3", "EAS": "eas_1kg_hm3", "AFR": "afr_1kg_hm3"}
 
 
 def read_options(path: Path) -> list[tuple[str, list[str]]]:
@@ -140,12 +146,13 @@ def main() -> int:
             reference = overrides[anc]
         elif (project / "ref" / anc / "manifest.json").is_file():
             reference = str(project / "ref" / anc)
-        elif anc == "EUR":
-            reference = "eur_1kg_hm3"
+        elif anc.upper() in DOWNLOADABLE:
+            reference = DOWNLOADABLE[anc.upper()]
         else:
             print(
-                f"{anc}: SKIPPED, no LD reference at {project / 'ref' / anc} "
-                "(build it with ld_build.sh or pass --reference)"
+                f"{anc}: SKIPPED, no LD reference at {project / 'ref' / anc} and no "
+                f"downloadable reference for this label (those are {', '.join(DOWNLOADABLE)}); "
+                "build one with ld_build.sh or pass --reference"
             )
             continue
 

@@ -1,0 +1,9 @@
+$ python tools/ld_validation/validate_against_upstream.py --plink 'plink/kg3.{chrom}' \
+      --keep eas.samples --bundle refs/eas_1kg_hm3 --no-unrounded
+chr1   78,484 SNPs done (   2.3 s elapsed)
+...
+chr22  13,710 SNPs done (  26.7 s elapsed)
+
+=== round_r2=6: compute_ld, 1 configuration(s) in one pass, 18.6 s ===
+config               SNPs    N* equal  rows identical  pairs +ours  pairs +upstr   max|dLD|
+w1000kb_r0.1      953,834     953,834         953,834            0             0   4.01e-06

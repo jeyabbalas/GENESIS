@@ -1,0 +1,32 @@
+$ genesis fit gwas/sim.AFR.GRCh38.tsv.gz --reference refs/afr_1kg_hm3 --model 2 --out results/sim.AFR --threads 8
+17:50:12  genesis-gwas 0.2.0
+17:50:12  Command: genesis fit gwas/sim.AFR.GRCh38.tsv.gz --reference refs/afr_1kg_hm3 --model 2 --out results/sim.AFR --threads 8
+17:50:13  Reference: afr_1kg_hm3 v1.0 (AFR, GRCh37, M = 1,025,309; window 1000 kb, r2 >= 0.1)
+17:50:14  Read 993,987 rows from gwas/sim.AFR.GRCh38.tsv.gz (Z from Z; N from effective N = n_cases * n_controls / (n_cases + n_controls))
+17:50:15  QC: chi-square > 80                                            removed          2,    993,985 remain
+17:50:15  Prepared 993,985 SNPs for analysis (of 993,987 read), matched to the reference by position (GRCh38)
+17:50:15  Fitting the two-component model ...
+17:50:16  Compute: numpy on CPU, 8 thread(s); 993,985 SNPs
+17:50:16    M2           iter     0  logLik 3936301.0905  c0 10  [1.01978e-02  5.04110e-05  6.19960e-07]
+17:50:22  
+GENESIS fit: M2 (two-component model)
+  GWAS markers analysed (K)     : 993,985
+  Reference-panel SNPs (M)      : 1,025,309
+  Mean sample size              : 59,252.3
+  Optimisation                  : converged after 50 EM iteration(s), c0 = 10; 6 Newton step(s)
+  Composite log-likelihood      : 3,938,974.8995
+  Model selection               : BIC = -7,877,421.183   AIC = -7,877,865.885   d_s = 41.957
+
+  Parameter           Estimate              SE
+  pic             3.514686e-03      3.7222e-04
+  sigmasq         1.243818e-04      8.5466e-06
+  a               1.319446e-06      1.1740e-07
+
+  Derived quantity                                              Estimate          SE
+  Number of susceptibility SNPs                                   3603.6       381.6
+  Total heritability                                             0.44823     0.02588
+  Sibling relative risk                                           1.2512     0.01619
+
+  Convergence check             : estimate is within 5.09e-11 SE of the likelihood stationary point
+
+17:50:22  Selected model: M2. Results written to results/sim.AFR.*  (9.9 s)

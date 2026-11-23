@@ -12,7 +12,10 @@ plausible numbers, so three independent sources of truth are used.
 
 1. **The original software itself.** The original R/C++ package
    ([yandorazhang/GENESIS](https://github.com/yandorazhang/GENESIS), commit `e4e6894`)
-   was built in isolation and run on synthetic and real data (`tools/upstream_oracle`).
+   was built in isolation and run on synthetic and real data (`tools/upstream_oracle`);
+   so was its East Asian sibling
+   ([yandorazhang/GENESISasian](https://github.com/yandorazhang/GENESISasian), commit
+   `4df90ac`).
    Its outputs — function values, complete EM trajectories, everything `genesis()`
    computes, and the results of the pure-R downstream functions — are stored as
    fixtures with 17 significant digits. The C++ source is compiled unchanged except for
@@ -35,19 +38,19 @@ which has its own tests.
 
 ## Test suite
 
-458 tests. Continuous integration runs them on every push for Python 3.10 to
+478 tests. Continuous integration runs them on every push for Python 3.10 to
 3.13 on Linux and for Python 3.12 on macOS (`.github/workflows/ci.yml`); tests that
 need external data or hardware — the full reference bundle, the 1000 Genomes genotypes,
-a GPU — are skipped where these are absent (8 on the development machine).
+a GPU — are skipped where these are absent (2 on the development machine, which lacks the LDSC European genotype files).
 
 | Area | Tests | What is checked |
 |---|---:|---|
 | `tests/core` | 80 | kernels against the literal port and the upstream fixtures; numerical derivatives; EM policies; Newton's method; sandwich estimator; engine (threads, chunking, backends, shards) |
 | `tests/analysis` | 256 | density, projections, risk prediction, posterior summaries, simulation, plots; comparisons with the original R functions |
-| `tests/ld` | 55 | PLINK reader; LD computation against brute force; bundle round trip; null statistics |
-| `tests/io` | 34 | parsing of summary statistics, QC, matching by identifier and position, reference bundles, download logic |
+| `tests/ld` | 68 | PLINK reader; LD computation against brute force; bundle round trip; null statistics; VCF conversion (by identifier and by position); chain-file liftover |
+| `tests/io` | 39 | parsing of summary statistics, QC, matching by identifier and position, reference bundles (GRCh37 and GRCh38), download logic |
 | `tests/test_fit.py`, `tests/test_cli.py` | 30 | end-to-end fits and the command line on real chromosome-22 data |
-| `tests/test_full_scale.py` | 3 | genome-wide parity with the original (needs the full reference; see below) |
+| `tests/test_full_scale.py` | 5 | genome-wide parity with GENESIS (European reference) and GENESISasian (East Asian reference); these need the full references, see below |
 
 ```bash
 pytest -q                                              # everything that needs no external data
@@ -58,6 +61,9 @@ GENESIS_1000G_PLINK=/path/to/1000G_EUR_Phase3_plink pytest tests/ld   # LD build
 The genome-wide tests need the reference bundle with the example GWAS
 (`genesis data fetch --components default,examples --dest /path/to/data`); the
 three-component one is additionally marked `slow` (849 EM iterations on 941,684 SNPs).
+The two East Asian tests need `eas_1kg_hm3` with its null replicates and pairwise $r^2$
+(`genesis data fetch EAS --components default,nullz,pairld`, or `GENESIS_EAS_BUNDLE`
+pointing at a bundle directory).
 
 ## Parity with the original fitting code
 
@@ -160,6 +166,30 @@ three-component model (whose printed covariance matrix shows the same asymmetry)
 investigated; that document was presumably produced on an x86 platform, where the
 original computes in 80-bit `long double` (see below).
 
+(east-asian-reference)=
+### GENESISasian and the East Asian reference
+
+GENESISasian contains no East Asian GWAS (its example is the European height file), so
+a GWAS was simulated for the comparison: 858,450 markers of `eas_1kg_hm3` with sample
+sizes between 135,000 and 150,000, effects from a three-component model spread through
+the signed LD of the panel (`tools/upstream_oracle/make_eas_sim.py`). The genuine
+GENESISasian code was run on it with all its defaults ($M = 953{,}834$) and the results
+stored as fixtures; `fit(..., legacy=True)` with `eas_1kg_hm3` is compared with them in
+`tests/test_full_scale.py`.
+
+| | Two-component model | Three-component model |
+|---|---|---|
+| EM iterations (original = this package) | 163 = 163 | 521 = 521 |
+| Estimates, largest relative difference | 6e-14 | 3.6e-11 |
+| Standard errors, largest relative difference | 5e-13 | 6.3e-11 |
+| Composite log-likelihood, relative difference | 5e-15 | |
+
+(Iterations are counted as in the European table above; the original's own counter
+starts at zero and reads 162 and 520.) A projection of `projection()` and a count of
+`numInterval()` computed by GENESISasian from these fits are reproduced to within
+$10^{-8}$ by `project` and `n_in_interval` given the fitted model, which carries
+$M = 953{,}834$.
+
 ## Parity of the downstream functions
 
 Against the original R functions (fixtures `rfuncs.json`, `mini_chr22_*.json`,
@@ -211,10 +241,35 @@ implements them. The validation covers one panel without missing genotypes; the
 handling of missing genotypes (mean imputation), of duplicates and of the MAF filter is
 covered by unit tests on synthetic data only.
 
-The European reference distributed with this package is a lossless conversion of the
-original tables: LD scores are bit-identical, tagging lists are identical as sets, and
-55 spot-checked SNPs agree field by field in all nine configurations
-(`tools/refdata/verify_bundle.py`).
+The same was done for the East Asian table of GENESISasian, from the 1000 Genomes
+Phase 3 VCF files converted with `genesis ld from-vcf` and the 504 samples labelled
+`EAS`:
+
+| Configuration | $N^*$ equal | Tagging lists identical | Ordered pairs | Max. abs. difference in LD score |
+|---|---|---|---|---|
+| 1 Mb, $r^2 \ge$ 0.1 | all 953,834 SNPs | all | 42,020,856 in both | 4.0e-06 |
+
+(41 SNPs have an LD-score difference above $10^{-9}$: decimal ties at the sixth digit,
+as above.) The SNP set is reproduced as well: "HapMap3 SNPs with MAF ≥ 0.05 in the 504
+samples" selects 952,124 SNPs of the HapMap3-without-MHC list, among them all 952,104
+such SNPs of the original reference; the 20 additional ones are not in the original,
+and the original's other 1,730 SNPs lie in the MHC, which that list omits. This is a
+second, independent data set — different genotype files, different samples, a
+different conversion path — on which the builder reproduces tables made by the
+method's authors.
+
+### The distributed references
+
+| Reference | Origin | How it was checked |
+|---|---|---|
+| `eur_1kg_hm3` | lossless conversion of the tables of GENESIS | LD scores bit-identical, tagging lists identical as sets, 55 spot-checked SNPs agree field by field in all nine configurations (`tools/refdata/verify_bundle.py`); rebuilt from genotypes as above |
+| `eas_1kg_hm3`, 1 Mb / 0.1, pairwise $r^2$, null replicates | lossless conversion of the tables of GENESISasian | the same checks; rebuilt from genotypes as above; parity of fits with GENESISasian |
+| `eas_1kg_hm3`, the other eight configurations | computed with this package (`round_r2=6`) from the 504 `EAS` samples | written only after the recomputed 1 Mb / 0.1 table reproduced the original (`tools/refdata/add_ld_configs.py`); internal consistency checks |
+| `afr_1kg_hm3` | computed with this package from the 661 `AFR` samples (exact $r^2$) | internal consistency checks; the download and a fit from the downloaded copy tested from local files; simulations below. **No original tables exist to compare with.** |
+
+The internal consistency checks of `verify_bundle.py` (unique SNPs, every SNP in its
+own neighbourhood, symmetric neighbourhoods within the window and the chromosome,
+checksums, and others) pass for all three: 126, 125 and 125 checks.
 
 ## Backends
 
@@ -295,6 +350,17 @@ Caveats:
   test configuration treats as errors; results are not affected.
 - **Reference panels with missing genotypes** in the LD builder (unit tests on
   synthetic data only).
+- **Real East Asian or African-ancestry GWAS.** No such data were analysed. For East
+  Asian data the numerical agreement with GENESISasian is established on a simulated
+  GWAS; for African ancestry there is no original software to agree with, and the
+  evidence is the builder's reproduction of the European and East Asian tables plus
+  the simulations below.
+- **Reference panels in GRCh38.** Selecting SNPs by position (`genesis ld from-vcf
+  --positions`) gives, on chromosome 22 of the Phase 3 files with GRCh37 positions, the
+  same 17,757 SNPs and identical genotypes as selecting by identifier, and GRCh38
+  references are covered by unit tests; no reference was built from a GRCh38 panel.
+- **Downloads of the East Asian and African-ancestry references from GitHub.** The
+  download path was exercised with the release files served from a local directory.
 - **Calibration of the standard errors beyond one setting.** The simulation study below
   covers a single two-component scenario; the three-component model was not studied.
 
@@ -373,3 +439,34 @@ Limitations: one parameter setting, one sample size and a two-component truth on
 estimation errors from a small reference panel (point 3); calibration was assessed
 around the mean estimate. The three-component model, for which the paper reports
 distinctly larger standard errors, was not studied.
+
+(simulation-ancestries)=
+### The same study with East Asian and African-ancestry LD
+
+The study was repeated with the other two references — same parameter values
+($\pi_c = 0.005$, $\sigma^2 = 6\times10^{-5}$, $a = 10^{-6}$, $n = 130{,}000$), same
+scheme, 50 data sets each. Because the references differ in $M$, the true number of
+susceptibility SNPs and the true heritability differ: 4,769 and 0.2862 for
+`eas_1kg_hm3`, 5,127 and 0.3076 for `afr_1kg_hm3`. The estimation errors are the null
+replicates of each reference; those of GENESISasian are coded towards the minor allele
+and were given the sign convention of the genotypes first.
+
+| LD of | Data sets | $\pi_c$: bias (SE / SD) | $\sigma^2$: bias (SE / SD) | $a$: bias (SE / SD) | Heritability: truth, mean estimate, bias | Empirical SD | Mean SE | SE / SD |
+|---|---:|---:|---:|---:|---|---:|---:|---:|
+| `eur_1kg_hm3` | 100 | −27.5% (1.01) | +34.5% (0.97) | +16.9% (0.72) | 0.3212, 0.3124, −2.7% | 0.0138 | 0.0128 | 0.93 |
+| `eas_1kg_hm3` | 50 | −27.2% (1.01) | +32.1% (1.09) | +18.9% (0.58) | 0.2862, 0.2742, −4.2% | 0.0108 | 0.0118 | 1.09 |
+| `afr_1kg_hm3` | 50 | −31.7% (0.89) | +41.3% (0.94) | +12.0% (0.41) | 0.3076, 0.2955, −3.9% | 0.0146 | 0.0143 | 0.98 |
+
+With 50 data sets the Monte-Carlo standard error of a ratio SE / SD is about 0.10.
+
+The pattern is the same in all three populations: $\pi_c$ too low by between a quarter
+and a third, $\sigma^2$ too high correspondingly, heritability within a few per cent
+of the truth, and standard errors of $\pi_c$, $\sigma^2$ and the heritability
+consistent with the spread of the estimates. The standard error of $a$ is too small
+everywhere, and more so with the African-ancestry panel (0.41). Nothing in these
+results is specific to an ancestry, which is what one expects of a method whose only
+population-specific input is the reference — but note what the simulations cannot
+show: the data are generated from the same panel that serves as the reference, so they
+say nothing about how well a 1000 Genomes panel represents the LD of a real study
+population. That question matters most for admixed samples, the African-ancestry
+reference included.

@@ -251,8 +251,8 @@ population and of cases whose predicted risk is at least `k` times the average.
 (reference-bundle-format)=
 ## Reference bundles
 
-An LD reference is a directory (a *bundle*). The European reference that is downloaded
-by `genesis data fetch`, the chromosome-22 reference inside the package and the output
+An LD reference is a directory (a *bundle*). The references that are downloaded
+by `genesis data fetch` (European, East Asian, African ancestry), the chromosome-22 reference inside the package and the output
 of `genesis ld build` all have this layout, and any such directory can be passed as
 `--reference DIR` or `load_reference(DIR)`.
 
@@ -274,11 +274,11 @@ eur_1kg_hm3/1.0/
 
 | File | Arrays | Content |
 |---|---|---|
-| `snps.npz` | `rsid` (bytes), `chrom` (uint8), `pos` (int32); optional `pos_grch38` (int32), `hm3_no_mhc` (bool) | the $M$ reference SNPs in canonical order (chromosome, position, identifier). `pos` is in the build named in the manifest; `pos_grch38` allows matching GRCh38 summary statistics by position; `hm3_no_mhc` marks the SNPs of the HapMap3-without-MHC list used by the QC filter |
+| `snps.npz` | `rsid` (bytes), `chrom` (uint8), `pos` (int32); optional `pos_grch38` or `pos_grch37` (int32), `hm3_no_mhc` (bool) | the $M$ reference SNPs in canonical order (chromosome, position, identifier). `pos` is in the build named in the manifest; `pos_grch38` (in a GRCh37 bundle) or `pos_grch37` (in a GRCh38 bundle) holds the positions in the other build, −1 where a SNP could not be converted, and allows matching summary statistics by position in either build; `hm3_no_mhc` marks the SNPs of the HapMap3-without-MHC list used by the QC filter (without it the filter excludes chromosome 6, 26–34 Mb, by position) |
 | `ld/w{W}kb_r{R}.npz` | `nstar` (int32), `ldscore` (float64), `indptr` (int64, length $M+1$), `indices` (int32); scalars `window_kb`, `r2_min`, `n_ref` | for LD window `W` kb and threshold $r^2 \ge$ `R`: the number of SNPs each SNP tags, $N^*_k$ (itself included); its LD score $\ell_k$; and its tagging neighbourhood in compressed-sparse-row form — the SNPs tagged by SNP `k` are `indices[indptr[k]:indptr[k+1]]` (row numbers of `snps.npz`) |
 | `pairld/w{W}kb_r{R}.npz` | `r2_u16` (uint16) | pairwise $r^2$ aligned with `indices`, stored as `round(65535 · r²)`; needed only for simulating LD-dependent statistics and `future_gc` |
 | `nullz/nullz_{a}-{b}.npy` | float16, shape (replicates, $M$) | Z statistics of null phenotypes computed from the reference genotypes: draws with the LD structure of the panel, used for QQ envelopes |
-| `manifest.json` | — | `format_version`, `name`, `version`, `population`, `panel`, `genome_build`, `n_ref` (panel size), `n_snps`, the list of `ld_configs` (`id`, `window_kb`, `r2_min`, `file`, `pairld`), `nullz` (`dtype`, `n_replicates`, `files`), and for every file its size and SHA-256 checksum |
+| `manifest.json` | — | `format_version`, `name`, `version`, `population`, `panel`, `genome_build`, `n_ref` (panel size), `n_snps`, the list of `ld_configs` (`id`, `window_kb`, `r2_min`, `file`, `pairld`), `nullz` (`dtype`, `n_replicates`, `files`), and for every file its size and SHA-256 checksum; `source` records where the data come from (the original package and commit, or the settings and filter counts of `genesis ld build`) |
 
 The LD score stored for SNP $k$ is the sum over its tagged SNPs of the bias-corrected
 squared correlation $r^2 - (1-r^2)/(n_\text{ref}-2)$.

@@ -197,6 +197,12 @@ individuals of the 1000 Genomes Project
 definitions — windows of 0.5, 1 and 2 Mb combined with $r^2$ thresholds of 0.05, 0.1 and
 0.2. The default, and the definition used in the paper, is 1 Mb and 0.1.
 
+References for East Asian (`eas_1kg_hm3`) and African ancestry (`afr_1kg_hm3`) have the
+same structure and are used in the same way — name them with `--reference EAS` or
+`--reference AFR`, or `genesis data fetch AFR`. [Chapter 7](other-ancestries.md)
+describes them and shows how to build a reference for any other population. This
+chapter continues with the European one.
+
 ### Getting it
 
 Nothing needs to be done on a computer with internet access: the files an analysis needs
@@ -226,7 +232,9 @@ definition, 32 MB. Further components are fetched by name:
 | `examples` | the height summary statistics | 13 MB | this tutorial |
 | `all` | everything | 504 MB | |
 
-`genesis data list` shows what is installed:
+The sizes are those of the European reference; the other two are slightly smaller
+([Installation](../getting-started/installation.md) has the table). `genesis data list`
+shows what is installed, here with `--summary`, which leaves out the list of files:
 
 ```{literalinclude} ../_scripts/output/data_list.txt
 :language: console

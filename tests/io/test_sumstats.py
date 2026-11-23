@@ -181,3 +181,24 @@ def test_from_arrays():
     assert ss.table["N"].tolist() == [500.0, 500.0] and "CHR" in ss.table.columns
     with pytest.raises(InputError):
         SumStats.from_arrays(["rs1"], [1.0, 2.0], 500)
+
+
+def test_non_positive_case_or_control_counts_are_missing(tmp_path):
+    """A negative count can give a positive 'effective N'; it must not be used."""
+    path = tmp_path / "cc.tsv"
+    path.write_text(
+        "SNP\tZ\tN_CASES\tN_CONTROLS\n"
+        "rs1\t1.0\t1000\t3000\n"
+        "rs2\t0.5\t22000\t-35000\n"  # 22000 * -35000 / (22000 - 35000) = +59,231
+        "rs3\t0.2\t0\t3000\n"
+    )
+    ss = read_sumstats(path)
+    n = ss.table["N"].to_numpy()
+    assert n[0] == pytest.approx(750.0)
+    assert np.isnan(n[1]) and np.isnan(n[2])
+    assert ss.info["case_fraction"] == pytest.approx(0.25)
+
+    bad = tmp_path / "bad.tsv"
+    bad.write_text("SNP\tZ\tN_CASES\tN_CONTROLS\nrs1\t1.0\t1000\t-3000\n")
+    with pytest.raises(DataError, match="positive case and control counts"):
+        read_sumstats(bad)

@@ -26,8 +26,8 @@ project/
 │   ├── overall.EUR.tsv.gz
 │   ├── subtypeA.EUR.tsv.gz
 │   └── overall.AFR.tsv.gz
-├── refs/                        references you built (the European one is downloaded)
-│   └── afr_1kg_hm3/
+├── refs/                        references you built (EUR, EAS and AFR are downloaded)
+│   └── sas_panel/
 ├── results/                     TRAIT.ANCESTRY.{M2,M3,best}.json, .estimates.tsv, .summary.txt, .log
 ├── genesis.swarm                one command per fit
 └── scripts/                     preflight.py, collect_estimates.py
@@ -105,11 +105,15 @@ and concatenate them:
 
 ```console
 $ genesis swarm gwas/*.EUR.tsv.gz --outdir results --swarmfile eur.swarm -- --model both
-$ genesis swarm gwas/*.AFR.tsv.gz --outdir results --swarmfile afr.swarm -- --model both --reference refs/afr_1kg_hm3
-$ cat eur.swarm afr.swarm > genesis.swarm
+$ genesis swarm gwas/*.AFR.tsv.gz --outdir results --swarmfile afr.swarm -- --model both --reference AFR
+$ genesis swarm gwas/*.EAS.tsv.gz --outdir results --swarmfile eas.swarm -- --model both --reference EAS
+$ genesis swarm gwas/*.SAS.tsv.gz --outdir results --swarmfile sas.swarm -- --model both --reference refs/sas_panel
+$ cat eur.swarm afr.swarm eas.swarm sas.swarm > genesis.swarm
 ```
 
-(These three lines are a template and were not run.)
+(These lines are a template and were not run. `AFR` and `EAS` name the downloadable
+references; `refs/sas_panel` stands for a reference you built for another group, as in
+[Chapter 7](other-ancestries.md).)
 
 **On Biowulf**, submit the swarm file yourself from the login node with the command that
 `genesis swarm` printed. [Running on Biowulf](../biowulf/index.md) covers the environment,
@@ -209,8 +213,11 @@ Data
 
 Reference
 
-- [ ] A reference for each ancestry, built from a matching panel of at least 200
-      individuals, with the same kind of SNP set and the same LD definitions.
+- [ ] A reference for each ancestry: `EUR`, `EAS` or `AFR`, or one built from a
+      matching panel of at least 200 individuals, with the same kind of SNP set and
+      the same LD definitions.
+- [ ] `--reference` given for every fit that is not European, and the reference
+      recorded in each result is the intended one.
 - [ ] Reference data present on the cluster before jobs start.
 
 Fitting

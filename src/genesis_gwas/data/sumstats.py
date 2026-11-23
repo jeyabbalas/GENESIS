@@ -478,7 +478,18 @@ def read_sumstats(
                 if "NCONTROL" in const_cc
                 else num("NCONTROL")
             )
-            nval = nca * nco / (nca + nco)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                nval = nca * nco / (nca + nco)
+            # A case or control count that is not positive is an error in the file, even
+            # when the formula happens to give a positive number; such rows are set to
+            # missing and removed by quality control.
+            invalid_cc = ~((nca > 0) & (nco > 0))
+            if invalid_cc.all():
+                raise DataError(
+                    f"{source}: no row has positive case and control counts; check the "
+                    "n_cases/n_controls columns."
+                )
+            nval = np.where(invalid_cc, np.nan, nval)
             details["n_from"] = "effective N = n_cases * n_controls / (n_cases + n_controls)"
             frac = nca / (nca + nco)
             frac = frac[np.isfinite(frac) & (frac > 0) & (frac < 1)]

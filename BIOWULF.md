@@ -45,13 +45,13 @@ file contents.
 |---|---|---|---|
 | install GENESIS | `bash setup_env.sh` | compute node | [2](#2-one-time-setup) |
 | check the installation | `genesis doctor --benchmark`, and `sbatch gpu_check.sh` for GPUs | compute node, login node | [2.5](#25-check-the-installation) |
-| download the LD reference | `sbatch fetch_refdata.sh default,nullz` | login node | [3](#3-reference-data) |
+| download the LD reference(s) | `sbatch fetch_refdata.sh default,nullz [REFERENCE ...]` | login node | [3](#3-reference-data) |
 | analyse one trait on CPUs | `sbatch fit_cpu.sh SUMSTATS OUT_PREFIX [options]` | login node | [4.2](#42-a-cpu-job) |
 | analyse one trait on a GPU | `sbatch fit_gpu.sh SUMSTATS OUT_PREFIX [options]` | login node | [4.3](#43-a-gpu-job) |
 | know how many CPUs to ask for, or whether a GPU pays | `genesis doctor --benchmark`, or `sbatch benchmark.sh` | compute node, login node | [5.1](#51-cpus-within-one-fit) |
 | analyse many traits | `genesis swarm ...`, then the `swarm` command it prints | compute node, login node | [5.3](#53-many-fits-at-once-swarm) |
 | analyse a whole project (ancestries x subtypes) | `python project_swarm.py PROJECT`, `swarm ...`, `python collect_results.py ...` | compute node, login node | [6](#6-worked-example-several-ancestries-several-subtypes) |
-| build an LD reference for another ancestry | `sbatch ld_build.sh ...` | login node | [6.2](#62-an-ld-reference-for-each-ancestry) |
+| build an LD reference for an ancestry other than European, East Asian or African | `genesis ld from-vcf ...`, `sbatch ld_build.sh ...` | login node | [6.2](#62-an-ld-reference-for-each-ancestry) |
 | see what a finished job really used | `jobhist JOBID` | login node | [7](#7-monitoring-right-sizing-and-common-failures) |
 
 All scripts named here are in [`examples/biowulf`][examples].
@@ -61,15 +61,15 @@ flowchart TD
     A["One-time setup: interactive session, conda environment, genesis doctor"]
     B["Reference data: genesis data fetch into /data"]
     C{"Ancestry of the GWAS?"}
-    D["Bundled European reference eur_1kg_hm3"]
-    E["Build a reference once: sbatch ld_build.sh"]
+    D["Downloadable reference: eur_1kg_hm3, eas_1kg_hm3 or afr_1kg_hm3"]
+    E["Build a reference once: genesis ld from-vcf, sbatch ld_build.sh"]
     F{"How many traits?"}
     G["One: sbatch fit_cpu.sh or fit_gpu.sh"]
     H["Many: genesis swarm or project_swarm.py, then swarm"]
     I["Check each job: jobhist, PREFIX.log, PREFIX.summary.txt"]
     J["collect_results.py: one table for all fits"]
     A --> B --> C
-    C -- "European" --> D
+    C -- "European, East Asian, African" --> D
     C -- "other" --> E
     D --> F
     E --> F
@@ -80,7 +80,9 @@ flowchart TD
     I --> J
 ```
 
-**The short version**, for a first run with the bundled European reference:
+**The short version**, for a first run with the European reference (for East Asian or
+African ancestry, add `eas_1kg_hm3` or `afr_1kg_hm3` to the `fetch_refdata.sh` line and
+`--reference EAS` or `--reference AFR` to the fit):
 
 ```bash
 # on Biowulf (login node)
@@ -274,7 +276,7 @@ Output from the development laptop with a 16-CPU Slurm allocation simulated (you
 versions, platform and timings will differ):
 
 ```text
-genesis-gwas 0.1.0
+genesis-gwas 0.2.0
   python 3.12.13  numpy 2.5.5  scipy 1.18.1  torch 2.15.0
   platform: macOS-27.0.1-arm64-arm-64bit
   CPUs available to this process: 16 (machine: 18)  [Slurm job 12345678, --cpus-per-task=16]
@@ -339,17 +341,30 @@ identified. Both are expected for so little data and say nothing about the insta
 ## 3. Reference data
 
 GENESIS needs an LD reference: for each SNP of a reference panel, how many SNPs it tags,
-its LD score and its tagging neighbourhood. The European reference of the original
-software (`eur_1kg_hm3`: 1000 Genomes Phase 3, 489 individuals, 1,070,777 HapMap3 SNPs,
-GRCh37) is downloaded from the GitHub release
-[`refdata-v1`](https://github.com/jeyabbalas/GENESIS/releases/tag/refdata-v1). Compute
-nodes reach GitHub through the HPC web proxy, so the download works inside a job; do it
-once, before any analysis.
+its LD score and its tagging neighbourhood. Three references, all from 1000 Genomes
+Phase 3 genotypes and with positions in GRCh37 and GRCh38, are downloaded from GitHub
+releases:
+
+| Reference | `--reference` | Population | Panel | SNPs (`M`) | Release |
+|---|---|---|---:|---:|---|
+| `eur_1kg_hm3` | default, or `EUR` | European | 489 | 1,070,777 | [`refdata-v1`](https://github.com/jeyabbalas/GENESIS/releases/tag/refdata-v1) |
+| `eas_1kg_hm3` | `EAS` | East Asian | 504 | 953,834 | [`refdata-v2`](https://github.com/jeyabbalas/GENESIS/releases/tag/refdata-v2) |
+| `afr_1kg_hm3` | `AFR` | African ancestry | 661 | 1,025,309 | [`refdata-v2`](https://github.com/jeyabbalas/GENESIS/releases/tag/refdata-v2) |
+
+The European one is the data of the original software, the East Asian one the data of
+the authors' GENESISasian package, and the African-ancestry one was built with this
+package; the [tutorial][tutorial] describes them. Compute nodes reach GitHub through
+the HPC web proxy, so the download works inside a job; do it once, before any analysis.
 
 ```bash
 # on Biowulf (login node)
-cd /data/$USER/proj && sbatch --output=logs/%x-%j.out $S/fetch_refdata.sh default,nullz
+cd /data/$USER/proj
+sbatch --output=logs/%x-%j.out $S/fetch_refdata.sh default,nullz                                       # European
+sbatch --output=logs/%x-%j.out $S/fetch_refdata.sh default,nullz eur_1kg_hm3 eas_1kg_hm3 afr_1kg_hm3   # all three
 ```
+
+The first argument of [`fetch_refdata.sh`][examples] is the list of components, the
+others are the references (European if none is given).
 
 or, if you are in a session anyway:
 
@@ -377,6 +392,7 @@ Reference eur_1kg_hm3 is ready in /data/$USER/genesis-ref/eur_1kg_hm3/1.0
 Data directory: /data/$USER/genesis-ref
 
 eur_1kg_hm3 v1.0: 1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05
+  population EUR, 1,070,777 SNPs, 489 samples, GRCh37
   installed 12/22 files (247 of 504 MB) in /data/$USER/genesis-ref/eur_1kg_hm3/1.0
   LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
    [ ] examples/height_giant2010.sumstats.tsv.gz            12.6 MB
@@ -387,25 +403,32 @@ eur_1kg_hm3 v1.0: 1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs wi
    [ ] pairld/w1000kb_r0.1.npz                              69.5 MB
    [x] snps.npz                                             11.1 MB
 
+eas_1kg_hm3 v1.0: 1000 Genomes Phase 3, EAS (n=504), HapMap3 SNPs with MAF>=0.05
+  population EAS, 953,834 SNPs, 504 samples, GRCh37
+  installed 0/21 files (0 of 411 MB) in /data/$USER/genesis-ref/eas_1kg_hm3/1.0
+  ...
+
 Packaged (no download needed): mini_chr22
 ```
+
+`genesis data list --summary` leaves out the file lists.
 
 `genesis data verify` re-hashes every file and prints `ok`, `missing` or `corrupt` for
 each; `missing` only means that the component was not fetched.
 
 **What to fetch.**
 
-| `--components` | Size | Needed for |
-|---|---:|---|
-| `default` | 32 MB | fitting with the standard LD settings (1 Mb window, r2 >= 0.1) |
-| `nullz` | 214 MB | QQ plots with simulation envelopes (`--qq`) |
-| `ld` | 196 MB | all nine LD settings, for sensitivity analyses (`--ld-window-kb`, `--ld-r2`) |
-| `pairld` | 70 MB | simulating summary statistics with LD |
-| `examples` | 13 MB | the GIANT height example used by the tutorial |
-| `all` | 504 MB | everything |
+| `--components` | EUR | EAS | AFR | Needed for |
+|---|---:|---:|---:|---|
+| `default` | 32 MB | 27 MB | 30 MB | fitting with the standard LD settings (1 Mb window, r2 >= 0.1) |
+| `nullz` | 214 MB | 191 MB | 205 MB | QQ plots with simulation envelopes (`--qq`) |
+| `ld` | 196 MB | 153 MB | 183 MB | all nine LD settings, for sensitivity analyses (`--ld-window-kb`, `--ld-r2`) |
+| `pairld` | 70 MB | 57 MB | 41 MB | simulating summary statistics with LD |
+| `examples` | 13 MB | – | – | the GIANT height example used by the tutorial |
+| `all` | 504 MB | 411 MB | 439 MB | everything |
 
-Names can be combined with commas. `default,nullz` (247 MB) covers a standard analysis
-with QQ plots.
+Names can be combined with commas. `default,nullz` covers a standard analysis with QQ
+plots: 247 MB for the European reference, 700 MB for all three.
 
 **What you should know.**
 
@@ -426,7 +449,8 @@ with QQ plots.
   everyone export the same `GENESIS_DATA_DIR`. The script sets `umask 027`, so the files
   are group-readable and not world-readable. Fetch `all` in that case: other members
   usually cannot write there, so nothing can be fetched on demand later.
-- **Versions.** The reference is `eur_1kg_hm3` version 1.0, release tag `refdata-v1`.
+- **Versions.** The references are `eur_1kg_hm3` (release tag `refdata-v1`),
+  `eas_1kg_hm3` and `afr_1kg_hm3` (`refdata-v2`), each in version 1.0.
   Every result file records the name, version and LD configuration it used
   ([section 8](#8-reproducibility)).
 - **If the download fails in a job**, check that the proxy variables are set
@@ -439,7 +463,7 @@ with QQ plots.
   scp -r ./genesis-ref username@helix.nih.gov:/data/username/
   ```
 
-- **Other ancestries** need their own reference; see
+- **Ancestries other than these three** need a reference that you build; see
   [6.2](#62-an-ld-reference-for-each-ancestry).
 
 ## 4. Running one analysis
@@ -457,8 +481,10 @@ describe all of them. Three points deserve attention in a consortium setting:
   `ncase x ncontrol / (ncase + ncontrol)`. Give `--n-cases` and `--n-controls` (column
   names or numbers) and GENESIS computes it. If your file already holds an effective N in
   the METAL or PGC convention, `4 / (1/ncase + 1/ncontrol)`, add `--n-scale 0.25`.
-- **Identifiers must match the reference.** The bundled reference uses rsIDs. For files
-  keyed by position use `--match-on position --build GRCh37` (or `GRCh38`).
+- **Identifiers must match the reference.** The downloadable references use rsIDs and
+  carry positions in GRCh37 and GRCh38. A file without rsIDs but with chromosome and
+  position columns is matched by position automatically; `--match-on position --build
+  GRCh37` (or `GRCh38`) forces it.
 - **Genome-wide files are much larger than what is used.** Only the SNPs in the LD
   reference enter the analysis, but `genesis fit` first reads the whole file, at about
   0.7 GB of memory per million rows. That is fine for one job
@@ -613,12 +639,12 @@ laptop, for a user called `jdoe` (shortened):
 ```text
 host=...  job=1003  cpus=12  mem=8192MB
 sumstats=/data/jdoe/proj/sumstats/height.sumstats.tsv.gz  out=/data/jdoe/proj/results/height  GENESIS_DATA_DIR=/data/jdoe/genesis-ref
-genesis-gwas 0.1.0
+genesis-gwas 0.2.0
 19:50:42  Command: genesis fit /data/jdoe/proj/sumstats/height.sumstats.tsv.gz --out /data/jdoe/proj/results/height --device cpu --qq --posterior --project 2e5,5e5,1e6
 19:50:42  Reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
 19:50:42  Read 1,037,172 rows from /data/jdoe/proj/sumstats/height.sumstats.tsv.gz (Z from Z; N from N)
 19:50:43  QC: not in the LD reference (eur_1kg_hm3, matched on rsid)     removed     95,488,    941,684 remain
-19:50:44  Prepared 941,684 SNPs for analysis (of 1,037,172 read)
+19:50:44  Prepared 941,684 SNPs for analysis (of 1,037,172 read), matched to the reference by identifier
 19:50:44  Fitting the two-component model ...
 19:50:44  Compute: numpy on CPU, 12 thread(s); 941,684 SNPs
 ...
@@ -958,14 +984,13 @@ study.
 ├── sumstats/
 │   ├── EUR/  overall.sumstats.tsv.gz  ERpos.sumstats.tsv.gz  ERneg.sumstats.tsv.gz  ...
 │   ├── AFR/  overall.sumstats.tsv.gz  ...
-│   └── EAS/  overall.sumstats.tsv.gz  ...
-├── panels/                        PLINK genotypes of an LD panel for each non-European ancestry
-│   ├── AFR/  chr1.bed chr1.bim chr1.fam ... chr22.*
-│   └── EAS/  ...
+│   ├── EAS/  overall.sumstats.tsv.gz  ...
+│   └── SAS/  overall.sumstats.tsv.gz  ...
+├── panels/                        genotypes of an LD panel, only for ancestries without a downloadable reference
+│   └── kg/   kg3.1.bed kg3.1.bim kg3.1.fam ... kg3.22.*
 ├── ref/                           LD references built from the panels (6.2)
-│   ├── hm3_no_mhc.snplist
-│   ├── AFR/
-│   └── EAS/
+│   ├── hapmap3_noMHC.snplist
+│   └── SAS/
 ├── fit_options.tsv                per-trait options (6.3)
 ├── swarm/                         swarm files, written by project_swarm.py
 ├── results/<ANCESTRY>/<trait>.*   one set of result files per fit
@@ -974,9 +999,11 @@ study.
 ```
 
 The directory names under `sumstats/` are the ancestry labels used everywhere else, and
-each file name (up to its extensions) is the trait name. The setup of sections 2 and 3
-is assumed: the environment `genesis`, the clone in `/data/$USER/GENESIS`, and the
-European reference in `/data/$USER/genesis-ref`.
+each file name (up to its extensions) is the trait name. The labels `EUR`, `EAS` and
+`AFR` have a meaning: `project_swarm.py` gives them the downloadable references. Any
+other label (`SAS` here stands for one) needs a reference under `ref/`. The setup of
+sections 2 and 3 is assumed: the environment `genesis`, the clone in
+`/data/$USER/GENESIS`, and the reference data in `/data/$USER/genesis-ref`.
 
 ```bash
 # on Biowulf (login node)
@@ -986,42 +1013,89 @@ mkdir -p $P/{sumstats,panels,ref,swarm,results,logs,collected}
 
 ### 6.2 An LD reference for each ancestry
 
-The LD reference must match the ancestry of the GWAS. The bundled `eur_1kg_hm3` serves
-European-ancestry GWAS. For every other group, build a reference once from the PLINK
-genotypes (`.bed/.bim/.fam`) of an ancestry-matched panel, such as the corresponding
-1000 Genomes samples or a subset of your own study. Individual-level genotypes are
-subject to their data-use terms; 1000 Genomes is public.
+The LD reference must match the ancestry of the GWAS: a marker in the African-ancestry
+panel tags about half as many SNPs as one in the European panel, and a fit with the
+wrong reference is biased throughout.
 
-First the SNP list that defines the panel. The method was developed with HapMap3 SNPs
-outside the MHC. The quickest list is the one inside the European reference:
-
-```bash
-# on a compute node (sinteractive session with --mem=4g or more), environment active
-export GENESIS_DATA_DIR=/data/$USER/genesis-ref
-python - /data/$USER/proj/ref/hm3_no_mhc.snplist <<'EOF'
-import sys
-import numpy as np
-import genesis_gwas as gg
-
-ref = gg.load_reference("eur_1kg_hm3")
-keep = np.flatnonzero(ref.hm3_no_mhc)
-np.savetxt(sys.argv[1], ref.subset_ids(keep), fmt="%s")
-print(f"wrote {keep.size:,} SNP identifiers")
-EOF
-```
-
-It prints `wrote 1,068,898 SNP identifiers`. These are the
-HapMap3 SNPs that are common in Europeans. A complete HapMap3 list with the MHC removed
-is the better starting point for other ancestries when you have one, because the build
-then keeps the SNPs that are common in *that* population.
-
-Then one batch job per ancestry:
+**European, East Asian, African ancestry: download.** Nothing has to be built. Fetch
+the three references once (section 3), and name the reference in each fit:
 
 ```bash
 # on Biowulf (login node)
 cd $P
-sbatch --output=logs/%x-%j.out $S/ld_build.sh $P/panels/AFR/chr{chrom} $P/ref/AFR afr_panel_hm3 AFR $P/ref/hm3_no_mhc.snplist
-sbatch --output=logs/%x-%j.out $S/ld_build.sh $P/panels/EAS/chr{chrom} $P/ref/EAS eas_panel_hm3 EAS $P/ref/hm3_no_mhc.snplist
+sbatch --output=logs/%x-%j.out $S/fetch_refdata.sh default,nullz eur_1kg_hm3 eas_1kg_hm3 afr_1kg_hm3
+sbatch --output=logs/%x-%j.out $S/fit_cpu.sh $P/sumstats/AFR/overall.sumstats.tsv.gz $P/results/AFR/overall --reference AFR --qq
+sbatch --output=logs/%x-%j.out $S/fit_cpu.sh $P/sumstats/EAS/overall.sumstats.tsv.gz $P/results/EAS/overall --reference EAS --qq
+```
+
+(`project_swarm.py` in 6.4 adds `--reference` for you.) Know what they are before you
+rely on them:
+
+- `eas_1kg_hm3` is the data of the authors' GENESISasian package (504 East Asian
+  samples of 1000 Genomes Phase 3). With `--legacy` it reproduces that package.
+- `afr_1kg_hm3` was built with this software from the 661 samples of the 1000 Genomes
+  `AFR` super-population, which includes the admixed African-Caribbean (ACB) and
+  African-American (ASW) samples. No reference from the method's authors exists for
+  this population.
+- Neither was used on a real GWAS during development: the support is that the builder
+  reproduces the authors' European and East Asian tables, and simulations with the LD
+  of each panel ([validation][validation]).
+
+**Any other ancestry, or a panel of your own: build.** A reference is built once from
+the genotypes of an ancestry-matched panel, such as the corresponding 1000 Genomes
+samples or a subset of your own study. Individual-level genotypes are subject to their
+data-use terms; 1000 Genomes is public. Three things are needed.
+
+*1. The SNP list* that defines the panel. The method was developed with HapMap3 SNPs
+outside the MHC; that list (1,214,893 identifiers) is a file of the `refdata-v2`
+release:
+
+```bash
+# on a compute node (sinteractive session)
+cd /data/$USER/proj/ref
+wget https://github.com/jeyabbalas/GENESIS/releases/download/refdata-v2/hapmap3_noMHC.snplist.gz
+gunzip hapmap3_noMHC.snplist.gz
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz    # optional, see below
+```
+
+The build keeps the SNPs of the list that are common (MAF of at least 0.05) in the
+panel, so the same list serves every population.
+
+*2. Genotypes in PLINK format.* If the panel is in VCF format, as the 1000 Genomes
+Phase 3 files are (22 files, 15 GB in total, all 2,504 samples), convert it once;
+`genesis ld from-vcf` needs no other software and keeps only the SNPs of the list:
+
+```bash
+# on a compute node (sinteractive session with --cpus-per-task=16 --mem=16g), environment active
+cd /data/$USER/proj
+genesis ld from-vcf \
+    --vcf '/path/to/1000G/ALL.chr{chrom}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz' \
+    --snps ref/hapmap3_noMHC.snplist --out 'panels/kg/kg3.{chrom}'
+```
+
+On the laptop this took under two minutes with 14 processes for all 22 files. Whether
+and where Biowulf keeps a copy of these VCF files has not been checked: look under
+`/fdb` (for example `ls /fdb/1000genomes`), and otherwise download them from the
+1000 Genomes FTP site or its AWS mirror in a job. Panels that name variants by position
+instead of rsID, as many GRCh38 panels do, are selected with `--positions`; see the
+[tutorial chapter on other ancestries][other-ancestries]. PLINK files that you already
+have need no conversion.
+
+*3. The samples of the population*, one identifier per line. For 1000 Genomes they
+come from the project's sample table:
+
+```bash
+# on a compute node (sinteractive session)
+awk '$3 == "SAS" {print $1}' integrated_call_samples_v3.20130502.ALL.panel > /data/$USER/proj/ref/sas.samples
+```
+
+Then one batch job per reference:
+
+```bash
+# on Biowulf (login node)
+cd $P
+sbatch --output=logs/%x-%j.out $S/ld_build.sh "$P/panels/kg/kg3.{chrom}" $P/ref/SAS sas_1kg_hm3 SAS $P/ref/hapmap3_noMHC.snplist \
+    --keep $P/ref/sas.samples --liftover-chain $P/ref/hg19ToHg38.over.chain.gz
 ```
 
 The five arguments of [`ld_build.sh`][ld_build] are the PLINK prefix, the output
@@ -1036,45 +1110,64 @@ genesis ld build --bfile "$BFILE" --out "$OUT_DIR" --name "$NAME" --population "
 ```
 
 and anything you add after the five arguments goes to `genesis ld build`, overriding
-these defaults: `--genome-build GRCh38` if the `.bim` positions are GRCh38 (the default
-is GRCh37), `--keep samples.txt` to use a subset of the samples, or
-`--window-kb 500,1000,2000 --r2 0.05,0.1,0.2` for all nine LD settings. The job ends
-with `genesis data verify`. A test of exactly the first command on the laptop, with the
-1000 Genomes European panel standing in for the `AFR` panel (user `jdoe`, 16 threads,
-66 seconds, 3.3 GB peak memory; shortened):
+these defaults: `--keep samples.txt` for the samples of the population,
+`--liftover-chain FILE` to store positions in the other genome build as well (the UCSC
+file `hg19ToHg38.over.chain.gz` for a GRCh37 panel; with it the reference matches
+summary statistics by position in GRCh37 or GRCh38), `--genome-build GRCh38` if the
+`.bim` positions are GRCh38 (the default is GRCh37; the chain file is then
+`hg38ToHg19.over.chain.gz`), or `--window-kb 500,1000,2000 --r2 0.05,0.1,0.2` for all
+nine LD settings. The job ends with `genesis data verify`.
+A test of exactly this command on the laptop, with the 489 `SAS` samples of
+1000 Genomes Phase 3 (user `jdoe`, 16 threads on a busy machine, 71 seconds, 3.2 GB peak
+memory; shortened):
 
 ```text
-19:46:16  chr1     88,107 SNPs, 4,197,401 tagging pairs (w1000kb_r0.1), 2.0 s
+bfile=/data/jdoe/proj/panels/kg/kg3.{chrom}  out=/data/jdoe/proj/ref/SAS  name=sas_1kg_hm3  population=SAS  snps=/data/jdoe/proj/ref/hapmap3_noMHC.snplist
+genesis-gwas 0.2.0
+18:13:12  chr1     88,308 SNPs, 3,828,678 tagging pairs (w1000kb_r0.1), 3.2 s
 ...
-19:47:03  chr22    15,633 SNPs, 612,703 tagging pairs (w1000kb_r0.1), 0.5 s
-19:47:14  Wrote reference bundle /data/jdoe/proj/ref/AFR: 1,068,898 SNPs, 489 samples, 1 configuration(s), 61.6 s
-19:47:14  Reference bundle written to /data/jdoe/proj/ref/AFR; use it with --reference /data/jdoe/proj/ref/AFR
+18:14:03  chr22    15,453 SNPs, 538,723 tagging pairs (w1000kb_r0.1), 0.4 s
+18:14:03  build_reference: variants_seen                       1,205,523
+18:14:03  build_reference: not_in_snp_list                         2,124
+18:14:03  build_reference: monomorphic_or_all_missing              9,899
+18:14:03  build_reference: below_min_maf                         129,079
+18:14:04  Lifted positions from GRCh37 to GRCh38: 1,063,846 mapped, 575 not mapped
+18:14:12  Wrote reference bundle /data/jdoe/proj/ref/SAS: 1,064,421 SNPs, 489 samples, 1 configuration(s), 66.2 s
+18:14:12  Reference bundle written to /data/jdoe/proj/ref/SAS; use it with --reference /data/jdoe/proj/ref/SAS
 ok       ld/w1000kb_r0.1.npz
 ok       nullz/nullz_000-009.npy
 ...
 ok       pairld/w1000kb_r0.1.npz
 ok       snps.npz
-315M	/data/jdoe/proj/ref/AFR
+298M	/data/jdoe/proj/ref/SAS
 ```
+
+(In this test the PLINK files had been written with a slightly larger SNP list, hence
+the 2,124 variants "not in the SNP list". The resulting South Asian reference is an
+illustration of the procedure: it was not used for anything beyond the test project
+below, and it is not distributed.)
 
 Points that matter for the science:
 
 - **`M` differs between references.** Only SNPs with MAF of at least 0.05 in the panel
-  are kept, so each reference has its own number of SNPs `M`. The estimated number of
-  susceptibility SNPs is a proportion times `M`: compare proportions, or keep `M` in
-  mind, when you compare ancestries.
+  are kept, so each reference has its own number of SNPs `M` (1,070,777 for
+  `eur_1kg_hm3`, 953,834 for `eas_1kg_hm3`, 1,025,309 for `afr_1kg_hm3`). The estimated
+  number of susceptibility SNPs is a proportion times `M`: compare proportions, or keep
+  `M` in mind, when you compare ancestries.
 - **Panel size matters.** LD scores from a few hundred individuals are noisy. The
-  bundled reference uses 489; a much smaller panel deserves caution. Time and memory of
-  the build grow with the number of samples: the script asks for 16 GB and 2 hours,
-  which is far more than a panel of this size needs, and has not been measured for
-  larger ones.
+  downloadable references use 489, 504 and 661; a much smaller panel deserves caution.
+  Time and memory of the build grow with the number of samples: the script asks for
+  16 GB and 2 hours, which is far more than a panel of this size needs, and has not
+  been measured for much larger ones.
 - **Admixed groups.** A single reference panel describes the LD of an admixed sample
   only approximately. Treat such estimates as more tentative, and check how sensitive
-  they are to the panel.
-- **The MHC.** With a custom reference, GENESIS removes chr6:26-34 Mb during QC only
-  when the reference is on GRCh37. For a GRCh38 reference it skips that step with a
-  warning, so make sure the SNP list already excludes the region.
-- **Matching.** If the GWAS files of an ancestry carry positions instead of rsIDs, give
+  they are to the panel. This applies to `afr_1kg_hm3` used for an African-American
+  study as much as to a panel of your own.
+- **The MHC.** QC removes GWAS markers in the MHC (chr6:26-34 Mb in GRCh37, the
+  corresponding interval for a GRCh38 reference) whatever the reference. The list used
+  above already excludes the region from the reference itself.
+- **Matching.** A GWAS file without rsIDs is matched by position when it has chromosome
+  and position columns, in whichever build matches more SNPs. To force the choice, give
   those fits `--match-on position --build ...` ([6.3](#63-per-trait-options)).
 
 ### 6.3 Per-trait options
@@ -1102,7 +1195,8 @@ Without counts it asks for both.
 ### 6.4 Pilot, then the full swarm
 
 [`project_swarm.py`][project_swarm] walks `sumstats/`, picks the reference of each
-ancestry (`ref/<ANCESTRY>` if it holds a bundle, the bundled `eur_1kg_hm3` for `EUR`;
+ancestry (`ref/<ANCESTRY>` if it holds a bundle; otherwise the downloadable
+`eur_1kg_hm3`, `eas_1kg_hm3` and `afr_1kg_hm3` for the labels `EUR`, `EAS` and `AFR`;
 `--reference ANC=NAME_OR_DIR` overrides), and writes one line for every fit that has no
 `results/<ANCESTRY>/<trait>.best.json` yet. It submits nothing.
 
@@ -1113,17 +1207,25 @@ python /data/$USER/GENESIS/examples/biowulf/project_swarm.py /data/$USER/proj --
 ```
 
 Output for a test project laid out as in 6.1 (user `jdoe`; three traits for `EUR`, one
-each for `AFR` and `EAS`, and no reference for `EAS` yet):
+each for `AFR`, `EAS` and `SAS`, with the `SAS` reference of 6.2):
 
 ```text
-AFR: reference /data/jdoe/proj/ref/AFR; 1 fit(s) to run, 0 already finished
-EAS: SKIPPED, no LD reference at /data/jdoe/proj/ref/EAS (build it with ld_build.sh or pass --reference)
+AFR: reference afr_1kg_hm3; 1 fit(s) to run, 0 already finished
+EAS: reference eas_1kg_hm3; 1 fit(s) to run, 0 already finished
 EUR: reference eur_1kg_hm3; 3 fit(s) to run, 0 already finished
+SAS: reference /data/jdoe/proj/ref/SAS; 1 fit(s) to run, 0 already finished
 
-Wrote /data/jdoe/proj/swarm/genesis.swarm with 4 fit(s), largest input first.
+Wrote /data/jdoe/proj/swarm/genesis.swarm with 6 fit(s), largest input first.
 Read it, then run on the Biowulf login node:
   swarm --devel -g 8 -t 16 --time 00:30:00 --logdir /data/jdoe/proj/logs/swarm /data/jdoe/proj/swarm/genesis.swarm    # dry run: submits nothing
   swarm -g 8 -t 16 --time 00:30:00 --logdir /data/jdoe/proj/logs/swarm /data/jdoe/proj/swarm/genesis.swarm
+```
+
+An ancestry label that has neither a bundle under `ref/` nor a downloadable reference
+is left out with a message; before the `SAS` reference existed the same command printed
+
+```text
+SAS: SKIPPED, no LD reference at /data/jdoe/proj/ref/SAS and no downloadable reference for this label (those are EUR, EAS, AFR); build one with ld_build.sh or pass --reference
 ```
 
 One line of the file, with the options of 6.3 appended:
@@ -1156,14 +1258,16 @@ python /data/$USER/GENESIS/examples/biowulf/project_swarm.py /data/$USER/proj \
 Here `--mem-gb` and `--time` stand for the pilot's largest values plus a margin, and
 `--bundle 5` makes each subjob run five fits in a row, as recommended in
 [5.3](#53-many-fits-at-once-swarm) for fits of a few minutes. In the test project, at a
-point where three fits had finished and one had been interrupted, this printed:
+point where four fits had finished, one had been interrupted and one had not been
+started, this printed:
 
 ```text
-AFR: reference /data/jdoe/proj/ref/AFR; 0 fit(s) to run, 1 already finished
-EAS: SKIPPED, no LD reference at /data/jdoe/proj/ref/EAS (build it with ld_build.sh or pass --reference)
+AFR: reference afr_1kg_hm3; 0 fit(s) to run, 1 already finished
+EAS: reference eas_1kg_hm3; 0 fit(s) to run, 1 already finished
 EUR: reference eur_1kg_hm3; 1 fit(s) to run, 2 already finished
+SAS: reference /data/jdoe/proj/ref/SAS; 1 fit(s) to run, 0 already finished
 
-Wrote /data/jdoe/proj/swarm/genesis.swarm with 1 fit(s), largest input first.
+Wrote /data/jdoe/proj/swarm/genesis.swarm with 2 fit(s), largest input first.
 Read it, then run on the Biowulf login node:
   swarm --devel -g 6 -t 16 --time 00:20:00 -b 5 --logdir /data/jdoe/proj/logs/swarm --partition quick,norm /data/jdoe/proj/swarm/genesis.swarm    # dry run: submits nothing
   swarm -g 6 -t 16 --time 00:20:00 -b 5 --logdir /data/jdoe/proj/logs/swarm --partition quick,norm /data/jdoe/proj/swarm/genesis.swarm
@@ -1192,9 +1296,10 @@ python /data/$USER/GENESIS/examples/biowulf/collect_results.py /data/$USER/proj/
 the directory and writes two tables. Output for the test project:
 
 ```text
-3 finished fit(s) -> /data/jdoe/proj/collected/all.estimates.tsv (82 rows), /data/jdoe/proj/collected/all.summary.tsv
+4 finished fit(s) -> /data/jdoe/proj/collected/all.estimates.tsv (116 rows), /data/jdoe/proj/collected/all.summary.tsv
 group   trait selected_model  n_snps       n_ssnp  heritability  heritability_se  n_warnings
-  AFR overall             M3  941626 10274.563932      0.325239         0.015278           0
+  AFR overall             M2  993985  3603.639394      0.448227         0.025879           0
+  EAS overall             M3  856175  3816.166519      0.187446         0.010195           0
   EUR   ERneg             M2  941684  5181.766638      0.300183         0.014073           0
   EUR overall             M3  941684 10257.226328      0.325923         0.015297           0
 
@@ -1202,9 +1307,13 @@ group   trait selected_model  n_snps       n_ssnp  heritability  heritability_se
   /data/jdoe/proj/results/EUR/ERpos
 ```
 
-(Every input of the test project is a copy of the GIANT height example, its `AFR`
-reference is the rebuilt European panel of 6.2, `EUR/ERneg` was fitted with `--model 2`
-and `EUR/ERpos` was interrupted on purpose. The numbers are therefore height's and mean
+(None of this is disease data. The `EUR` inputs of the test project are copies of the
+GIANT height example; the `AFR` and `EAS` inputs are GWAS simulated with the LD of the
+respective 1000 Genomes panel, the `AFR` one with GRCh38 positions and no rsIDs, which
+GENESIS matched by position without being told. `EUR/ERneg` was fitted with
+`--model 2`, `EUR/ERpos` was interrupted on purpose, and the `SAS` fit, whose input
+would have been another copy of the European height file, was not run. The fits ran on
+the laptop, one after another, with the commands of the swarm file. The numbers mean
 nothing for any disease.)
 
 - `all.estimates.tsv` holds every estimate of every model of every fit in long format,
@@ -1233,7 +1342,7 @@ Work down `all.summary.tsv`:
    builds did not match. The log's QC lines show where the SNPs went, and GENESIS warns
    when few reference SNPs are present.
 4. **`reference` is the right one in every row**: the ancestry's own panel, not the
-   European bundle by accident.
+   European one by accident (a fit without `--reference` uses the European reference).
 5. **`mean_n` is an effective sample size** for case-control traits: a fraction of the
    total sample, not the total.
 6. **The QQ plot** (`PREFIX.qq.png`): the observed curve stays inside the envelope
@@ -1323,7 +1432,7 @@ Each result file carries what is needed to say how it was produced. From
 {
   "provenance": {
     "software": "genesis-gwas",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "compute": {"backend": "numpy", "devices": ["cpu"], "n_threads": 12, "dtype": "float64",
                 "description": "numpy on CPU, 12 thread(s)"},
     "data": {
@@ -1357,8 +1466,8 @@ Biowulf:
   genesis --version > /data/$USER/proj/genesis-version.txt
   ```
 
-- **Pin the reference.** The bundled reference is identified by name, version and
-  release tag (`eur_1kg_hm3`, 1.0, `refdata-v1`), and `genesis data verify` checks every
+- **Pin the reference.** A downloaded reference is identified by name, version and
+  release tag (for example `eur_1kg_hm3`, 1.0, `refdata-v1`), and `genesis data verify` checks every
   file against the checksums in the package. For a reference you built, keep the build
   log, give it a version (`--bundle-version`), and keep its `manifest.json`, which lists
   the checksum of every file.
@@ -1385,7 +1494,7 @@ developers. The order is the order in which you will meet the items.
 | 1 | `mamba_install`, and creating the environment through the proxy (2.2, 2.3) | `bash setup_env.sh` ends with `All backends agree.` |
 | 2 | conda picks a CUDA build of PyTorch with `CONDA_OVERRIDE_CUDA=12.4` | `python -c 'import torch; print(torch.version.cuda)'` prints a version, not `None` |
 | 3 | the virtual-environment route on `python/3.12` (2.4) | `genesis doctor` in that environment |
-| 4 | downloading the reference from a compute node through the proxy (the release itself is published, and the download was verified from a laptop) | `sbatch fetch_refdata.sh`; its log ends with `ok` lines and has no `Download attempt ... failed` |
+| 4 | downloading the references from a compute node through the proxy (the download of the European reference, release `refdata-v1`, was verified from a laptop; the East Asian and African-ancestry files of `refdata-v2` were tested from a local copy of the release files) | `sbatch fetch_refdata.sh`; its log ends with `ok` lines and has no `Download attempt ... failed` |
 | 5 | `sbatch` passes the arguments after the script name to the script, as stock Slurm does | the first `fit_cpu.sh` job: its log echoes `sumstats=` and `out=` |
 | 6 | `#SBATCH --constraint="gpua100\|gpuv100x"` inside a script | `sbatch gpu_check.sh` is accepted and starts; otherwise delete that line and pass `--constraint="gpua100\|gpuv100x"` to `sbatch` |
 | 7 | the GPU code path on any CUDA device | `gpu_check.sh`: the self-test reports `ok    torch / cuda:0 ...` and the demo fit completes |
@@ -1393,8 +1502,11 @@ developers. The order is the order in which you will meet the items.
 | 9 | the multi-GPU path (5.2) | `genesis doctor --benchmark` in a two-GPU job: the line `torch / all 2 GPUs` passes the self-test and is faster than one GPU |
 | 10 | all run times, thread scaling and memory figures (4.5, 5.1): they come from one macOS laptop | `sbatch benchmark.sh` on CPUs and with a GPU; `jobhist JOBID` after the first fit |
 | 11 | the `swarm` commands printed by `genesis swarm` and `project_swarm.py`, above all the GPU form and `-t` together with `-b` | `swarm --devel ...` and read its `sbatch` line |
-| 12 | `ld_build.sh` for panels larger than 489 samples | `jobhist JOBID` after the first build |
-| 13 | cluster facts quoted here (partitions, limits, GPU types, CPUs-per-GPU caps, tool names) as of September 2026 | `batchlim`, `freen`, `module -r spider '^mamba_install$'`, `swarm --help` |
+| 12 | `ld_build.sh` for panels much larger than the 1000 Genomes populations (489 to 661 samples) | `jobhist JOBID` after the first build |
+| 13 | whether Biowulf holds the 1000 Genomes Phase 3 VCF files, and where (6.2) | `ls /fdb/1000genomes`; otherwise download them in a job |
+| 14 | `genesis ld from-vcf` on the cluster: run time and memory with files on `/data` or `/fdb` | `jobhist JOBID`, or the elapsed time of the interactive command |
+| 15 | the East Asian and African-ancestry references on real GWAS data of those populations (not specific to Biowulf: see [validation][validation]) | the sanity checks of 6.6, above all the share of matched SNPs and the QQ plot |
+| 16 | cluster facts quoted here (partitions, limits, GPU types, CPUs-per-GPU caps, tool names) as of September 2026 | `batchlim`, `freen`, `module -r spider '^mamba_install$'`, `swarm --help` |
 
 If an item fails, the message and the command are what the maintainers need
 ([section 10](#10-help-and-acknowledgement)).
@@ -1421,6 +1533,8 @@ If an item fails, the message and the command are what the maintainers need
 [fit_multigpu]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/fit_multigpu.sh
 [benchmark]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/benchmark.sh
 [ld_build]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/ld_build.sh
+[other-ancestries]: https://jeyabbalas.github.io/GENESIS/tutorial/other-ancestries.html
+[validation]: https://jeyabbalas.github.io/GENESIS/reference/validation.html
 [project_swarm]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/project_swarm.py
 [collect]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/collect_results.py
 [subset]: https://github.com/jeyabbalas/GENESIS/blob/main/examples/biowulf/subset_to_reference.py

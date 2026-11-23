@@ -55,7 +55,8 @@ class QCConfig:
         Restrict to the reference's HapMap3-without-MHC list when the reference
         provides one.
     exclude_mhc
-        If the reference has no such list, drop chromosome 6, 26–34 Mb (GRCh37).
+        If the reference has no such list, drop chromosome 6, 26–34 Mb (GRCh37; the
+        corresponding interval for a GRCh38 reference).
     min_info, min_maf
         Optional thresholds on imputation quality and minor-allele frequency; applied
         only when the summary statistics carry ``INFO`` / ``EAF`` columns.
@@ -82,6 +83,20 @@ class QCConfig:
 
 
 _MHC = (6, 26_000_000, 34_000_000)
+# The same interval in GRCh38 coordinates (UCSC liftOver of the two end points).
+_MHC_GRCH38 = (25_999_772, 34_032_223)
+
+
+def _mhc_positions(ref: LDReference) -> tuple[np.ndarray | None, tuple[int, int]]:
+    """Positions and interval to use for the positional MHC filter of a reference."""
+    build = ref.genome_build.lower()
+    if build in ("grch37", "hg19", "b37"):
+        return ref.pos, (_MHC[1], _MHC[2])
+    if ref.pos_grch37 is not None:
+        return ref.pos_grch37, (_MHC[1], _MHC[2])
+    if build in ("grch38", "hg38", "b38"):
+        return ref.pos, _MHC_GRCH38
+    return None, (_MHC[1], _MHC[2])
 
 
 def _match(
@@ -241,18 +256,17 @@ def prepare(
         apply(keep, "outside the HapMap3-without-MHC list")
         rows = rows[keep]
     elif cfg.exclude_mhc:
-        if ref.genome_build.lower() in ("grch37", "hg19"):
-            keep = ~(
-                (ref.chrom[rows] == _MHC[0])
-                & (ref.pos[rows] >= _MHC[1])
-                & (ref.pos[rows] <= _MHC[2])
-            )
+        mhc_pos, interval = _mhc_positions(ref)
+        if mhc_pos is not None:
+            p_ref = mhc_pos[rows]
+            keep = ~((ref.chrom[rows] == _MHC[0]) & (p_ref >= interval[0]) & (p_ref <= interval[1]))
             apply(keep, "MHC region (chr6:26-34 Mb)")
             rows = rows[keep]
         else:
             warnings.warn(
-                f"MHC exclusion skipped: reference build {ref.genome_build} is not GRCh37 and the "
-                "reference has no HapMap3-without-MHC list.",
+                f"MHC exclusion skipped: the genome build of the reference "
+                f"({ref.genome_build}) is not recognised and the reference has no "
+                "HapMap3-without-MHC list.",
                 DataWarning,
                 stacklevel=2,
             )
@@ -300,7 +314,15 @@ def prepare(
         "n_input": n_start,
         "n_final": len(rows),
     }
-    log.info("Prepared %s SNPs for analysis (of %s read)", f"{len(rows):,}", f"{n_start:,}")
+    how = "identifier" if match_info.get("match_on") == "rsid" else "position"
+    if how == "position" and match_info.get("build"):
+        how += f" ({match_info['build']})"
+    log.info(
+        "Prepared %s SNPs for analysis (of %s read), matched to the reference by %s",
+        f"{len(rows):,}",
+        f"{n_start:,}",
+        how,
+    )
     return ModelData.from_z(
         z=zv,
         n=nv,

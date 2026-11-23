@@ -7,6 +7,73 @@ public API (the names exported by `genesis_gwas`, the `genesis` command line and
 result-file schema) may still change between minor versions; such changes will be
 listed under "Changed".
 
+## 0.2.0 - 2026-11-23
+
+References for East Asian and African ancestry, and a path from public genotypes to a
+reference for any population.
+
+### Added
+
+- **East Asian reference `eas_1kg_hm3`**: the reference data of the authors' second R
+  package, [GENESISasian](https://github.com/yandorazhang/GENESISasian) (commit
+  `4df90ac`; 1000 Genomes Phase 3, 504 East Asian samples, 953,834 HapMap3 SNPs),
+  converted without loss. With it, `legacy` mode reproduces GENESISasian to rounding
+  error (tested against fixtures generated with that package). GENESISasian ships one LD
+  configuration (1 Mb, r² ≥ 0.1); the other eight were computed with this software from
+  the same genotypes, after confirming that it reproduces the original table exactly.
+- **African-ancestry reference `afr_1kg_hm3`**: built with this software from the 661
+  `AFR` samples of 1000 Genomes Phase 3 (1,025,309 HapMap3 SNPs outside the MHC with
+  MAF ≥ 0.05; nine LD configurations; 100 null replicates; GRCh37 and GRCh38
+  positions).
+- Both are downloaded on demand like the European reference (release `refdata-v2`).
+  The population codes `EUR`, `EAS` and `AFR` are accepted wherever a reference name is
+  (`--reference AFR`, `genesis data fetch eas`, `load_reference("AFR")`).
+- **`genesis ld from-vcf`** (`genesis_gwas.ld.vcf_to_plink`): converts VCF files, such
+  as those of the 1000 Genomes Project, to the PLINK filesets that `genesis ld build`
+  reads, keeping the SNPs and samples on a list; pure Python, no external tools.
+- **`genesis ld build --liftover-chain`** (`genesis_gwas.ld.liftover`): a built
+  reference can carry its positions in the other genome build as well, so that summary
+  statistics are matched by position in GRCh37 or GRCh38; panels in GRCh38 are
+  supported (`pos_grch37`). `--panel` records a description of the panel.
+- `genesis ld from-vcf --positions` selects SNPs by position instead of identifier,
+  for panels whose variants have no rsIDs.
+- The HapMap3-without-MHC SNP list used for the African-ancestry reference is
+  distributed with the reference data (`hapmap3_noMHC.snplist.gz`), together with a
+  table of its positions in GRCh37 and GRCh38 (`hapmap3_noMHC.positions.tsv.gz`).
+- `genesis data list --summary`; `genesis data list` shows population, number of SNPs,
+  panel size and genome build of every reference.
+- Simulations with the LD of the East Asian and African-ancestry panels
+  ([Validation](https://jeyabbalas.github.io/GENESIS/reference/validation.html)).
+
+### Changed
+
+- `genesis ld build` stores pairwise r² for the 1 Mb / r² ≥ 0.1 configuration when it
+  is among those built (previously for the first configuration listed).
+- The positional MHC filter of quality control also applies to references whose native
+  build is GRCh38 (previously it was skipped with a warning).
+- The log of `genesis fit` states how markers were matched to the reference (by
+  identifier, or by position and in which build).
+- `examples/biowulf/fetch_refdata.sh` fetches any number of references;
+  `project_swarm.py` uses the downloadable references for the ancestries `EUR`, `EAS`
+  and `AFR`.
+
+### Fixed
+
+- Case or control counts that are zero or negative are treated as missing instead of
+  entering the effective sample size (a negative count could give a positive effective
+  sample size); a file in which no row has valid counts is an error.
+
+### Known limitations
+
+- No real East Asian or African-ancestry GWAS was analysed; the support rests on
+  reproducing the original reference tables, on parity with GENESISasian for a
+  simulated GWAS, and on simulations with the LD of each panel.
+- Building a reference from a panel in GRCh38 (`genesis ld from-vcf --positions`,
+  `--genome-build GRCh38`) is covered by unit tests and a chromosome-22 check only.
+- Functions called with a bare parameter vector instead of a fitted model assume
+  M = 1,070,777, the European reference; with another reference pass the fit or `M=`.
+- As before, nothing was run on CUDA hardware or on the Biowulf cluster.
+
 ## 0.1.0 - 2026-11-21
 
 First release: a re-implementation in Python of the GENESIS method of Zhang, Qi, Park

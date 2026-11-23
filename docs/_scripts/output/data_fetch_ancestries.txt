@@ -1,0 +1,20 @@
+$ genesis data fetch AFR --dest refdata-demo
+17:58:58  Downloading <download URL>/afr_1kg_hm3-1.0-snps.npz (10.6 MB)
+17:58:58  Downloading <download URL>/afr_1kg_hm3-1.0-ld-w1000kb_r0.1.npz (19.7 MB)
+17:58:58  Reference afr_1kg_hm3 is ready in refdata-demo/afr_1kg_hm3/1.0
+refdata-demo/afr_1kg_hm3/1.0
+$ genesis data fetch eas_1kg_hm3 --dest refdata-demo --components default,nullz
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-snps.npz (9.9 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-ld-w1000kb_r0.1.npz (16.9 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_000-009.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_010-019.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_020-029.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_030-039.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_040-049.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_050-059.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_060-069.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_070-079.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_080-089.npy (19.1 MB)
+17:58:58  Downloading <download URL>/eas_1kg_hm3-1.0-nullz-nullz_090-099.npy (19.1 MB)
+17:58:58  Reference eas_1kg_hm3 is ready in refdata-demo/eas_1kg_hm3/1.0
+refdata-demo/eas_1kg_hm3/1.0

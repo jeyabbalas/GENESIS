@@ -1,0 +1,19 @@
+$ genesis data list --summary
+Data directory: ~/.cache/genesis-gwas
+
+eur_1kg_hm3 v1.0: 1000 Genomes Phase 3, LDSC EUR subset (n=489), HapMap3 SNPs with MAF>=0.05
+  population EUR, 1,070,777 SNPs, 489 samples, GRCh37
+  installed 0/22 files (0 of 504 MB) in ~/.cache/genesis-gwas/eur_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
+
+eas_1kg_hm3 v1.0: 1000 Genomes Phase 3, EAS (n=504), HapMap3 SNPs with MAF>=0.05
+  population EAS, 953,834 SNPs, 504 samples, GRCh37
+  installed 12/21 files (218 of 411 MB) in ~/.cache/genesis-gwas/eas_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
+
+afr_1kg_hm3 v1.0: 1000 Genomes Phase 3, AFR (n=661), HapMap3 SNPs outside the MHC with MAF>=0.05
+  population AFR, 1,025,309 SNPs, 661 samples, GRCh37
+  installed 2/21 files (30 of 439 MB) in ~/.cache/genesis-gwas/afr_1kg_hm3/1.0
+  LD configurations: w500kb_r0.05, w500kb_r0.1, w500kb_r0.2, w1000kb_r0.05, w1000kb_r0.1, w1000kb_r0.2, w2000kb_r0.05, w2000kb_r0.1, w2000kb_r0.2
+
+Packaged (no download needed): mini_chr22

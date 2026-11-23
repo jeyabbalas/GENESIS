@@ -578,14 +578,53 @@ None of these changes results beyond rounding error where the original works.
 | | Original | This package |
 |---|---|---|
 | Installation | R package with 1.6 GB of data inside the repository; C++ compiled at install time with OpenMP (with R 4.6 and Rcpp 1.1 the source only compiled after adding `-DPI=M_PI`) | pure Python wheel (2 MB); no compiler |
-| Reference data | all nine LD tables and 100 null replicates installed with the package | 32 MB downloaded on first use for the default configuration; checksummed, resumable; other components on demand |
+| Reference data | all nine LD tables and 100 null replicates installed with the package | about 30 MB per ancestry downloaded on first use for the default configuration; checksummed, resumable; other components on demand |
 | Parallel workers | `genesis()` and `qqplotdata.simu()` each start `makeCluster(cores)` and never stop it (`R/genesis.R` 91, `R/qqplotdata.simu.R` 29); the cluster is not used for computation | one thread pool per fit, released when the fit ends |
 | Memory | dense $K \times (c_0+1)^2$ weight matrix for the three-component model (1.0 GB at `c0 = 10`, 3.5 GB at `c0 = 20` per million SNPs), allocated and copied every iteration | chunked; working memory independent of the number of SNPs |
 | Tagging neighbourhoods | comma-separated identifier strings parsed in R for every SNP at every fit | integer CSR arrays |
 | Hardware | CPU threads (OpenMP) | CPU threads or CUDA GPUs |
-| Reference panels | European only | any population, built from PLINK files with `genesis ld build` |
+| Reference panels | European (GENESIS) and East Asian (GENESISasian, one LD configuration), in separate packages | European, East Asian and African ancestry with nine LD configurations each, selected with `--reference`; any other population built from VCF or PLINK files with `genesis ld from-vcf` and `genesis ld build` |
 
 Run times measured on one machine are in [Validation](validation.md#run-times).
+
+(genesisasian)=
+## GENESISasian
+
+The authors distribute a second R package for East Asian studies,
+[yandorazhang/GENESISasian](https://github.com/yandorazhang/GENESISasian) (examined at
+commit `4df90ac`). Compared file by file with GENESIS at `e4e6894`:
+
+| | GENESIS | GENESISasian |
+|---|---|---|
+| C++ source | | byte-identical |
+| R code, `genesis()` and helpers | default `M = 1070777` | default `M = 953834`; otherwise the same |
+| R code, `polyriskpredict()` | default `M = 1070777` | default `M = 200000`; line 67 passes `Sig2s=sig2s`, a variable the function does not define, where GENESIS passes `Sig2s=Sig2s` |
+| LD data | nine configurations (0.5 / 1 / 2 Mb × $r^2 \ge$ 0.05 / 0.1 / 0.2), 489 European samples, 1,070,777 SNPs | one configuration (1 Mb, $r^2 \ge 0.1$), 504 East Asian samples, 953,834 SNPs |
+| SNP set | HapMap3 without the MHC, MAF ≥ 0.05 in the panel | HapMap3, MAF ≥ 0.05 in the panel, **including** 1,775 SNPs in the MHC |
+| Example GWAS and HapMap3 list | GIANT height (European) | the same two files, byte-identical |
+
+So the method and its implementation are the same, and everything on this page applies
+to GENESISasian as it does to GENESIS. In this package the East Asian data are the
+reference `eas_1kg_hm3` (`--reference EAS`):
+
+- The 1 Mb / 0.1 tables, the pairwise $r^2$ and the 100 null replicates are a lossless
+  conversion of the original files. `legacy=True` with this reference reproduces
+  GENESISasian to rounding error ([Validation](validation.md#east-asian-reference)).
+- The other eight LD configurations do not exist in GENESISasian. They were computed
+  with this software from the 504 `EAS` samples of 1000 Genomes Phase 3, after the
+  same computation reproduced the original 1 Mb / 0.1 table (every $N^*$ and every
+  tagging list identical).
+- The 1,775 MHC SNPs stay in the reference and count towards $M$, as in the original.
+  Quality control removes MHC markers from the GWAS by default, as for every reference
+  (`--keep-mhc` to retain them, as GENESISasian with `filter=FALSE` does).
+- The example GWAS inside GENESISasian is the European height file of GENESIS; it is
+  not distributed with `eas_1kg_hm3`.
+- Functions called with a bare parameter vector assume $M = 1{,}070{,}777$ unless `M=`
+  is given, where GENESISasian's assume 953,834; pass the fitted model or `M=953_834`.
+  `polyrisk_predict` takes `M` explicitly in both.
+
+There is no original package for African ancestry; `afr_1kg_hm3` was built with this
+software ([Other ancestries](../tutorial/other-ancestries.md)).
 
 ## Summary
 

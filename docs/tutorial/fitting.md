@@ -344,6 +344,7 @@ instance after genomic-control correction of the input.
 | fix $a = 0$ (no inflation term) | `--no-stratification` | `stratification=False` |
 | CPU threads; GPU | `--threads 8`; `--device cuda` | `threads=8`; `device="cuda"` |
 | another LD definition | `--ld-window-kb 2000 --ld-r2 0.05` | `gg.load_reference(window_kb=2000, r2_min=0.05)` |
+| another ancestry | `--reference EAS`, `--reference AFR`, `--reference DIR` | `gg.load_reference("EAS")` |
 | several starting values | `--starting-pic 0.001,0.01,0.05` | `starting_pic=[0.001, 0.01, 0.05]` |
 | skip standard errors (faster exploration) | `--no-variance` | `variance=False` |
 | reproduce the original software | `--legacy` | `legacy=True` |

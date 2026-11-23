@@ -786,7 +786,7 @@ def build_reference(
     seed: int = 0,
     population: str = "unknown",
     genome_build: str = "GRCh37",
-    pair_r2_for: Any = "first",
+    pair_r2_for: Any = "default",
     round_r2: int | None = None,
     chromosomes: Iterable[int] = range(1, 23),
     version: str = "1.0",
@@ -795,6 +795,7 @@ def build_reference(
     device: str = "cpu",
     backend: str | None = None,
     threads: int | None = None,
+    liftover_chain: str | os.PathLike[str] | None = None,
 ) -> Path:
     r"""Build a GENESIS LD reference bundle from PLINK genotypes.
 
@@ -841,8 +842,10 @@ def build_reference(
         in the ``.bim`` file(s).
     pair_r2_for
         Which configurations also store pairwise :math:`r^2` (needed only to simulate
-        marginal effects, e.g. for genomic-control projections): ``"first"`` (default),
-        ``"all"``, ``None``, or a sequence of ``(window_kb, r2_min)`` pairs.
+        marginal effects, e.g. for genomic-control projections): ``"default"`` (the
+        1 Mb / :math:`r^2 \ge 0.1` configuration if it is among ``configs``, otherwise the
+        first one), ``"first"``, ``"all"``, ``None``, or a sequence of
+        ``(window_kb, r2_min)`` pairs.
     round_r2
         See :func:`compute_ld`. Leave at ``None`` for new panels.
     chromosomes
@@ -852,6 +855,12 @@ def build_reference(
     threads
         Cap on BLAS threads (needs the optional ``threadpoolctl`` package; otherwise the
         BLAS library's environment variables apply).
+    liftover_chain
+        UCSC chain file from ``genome_build`` to the other build
+        (``hg19ToHg38.over.chain.gz`` for a GRCh37 panel, ``hg38ToHg19.over.chain.gz`` for
+        a GRCh38 panel). When given, the bundle also stores the SNP positions in the other
+        build, so that summary statistics without usable SNP identifiers can be matched
+        by position whichever build they are in.
 
     Returns
     -------
@@ -881,12 +890,17 @@ def build_reference(
     if pair_r2_for is None:
         keep_r2 = [False] * len(cfgs)
     elif isinstance(pair_r2_for, str):
-        if pair_r2_for == "first":
+        if pair_r2_for == "default":
+            main = (1000.0, 0.1) if (1000.0, 0.1) in cfgs else cfgs[0]
+            keep_r2 = [c == main for c in cfgs]
+        elif pair_r2_for == "first":
             keep_r2 = [i == 0 for i in range(len(cfgs))]
         elif pair_r2_for == "all":
             keep_r2 = [True] * len(cfgs)
         else:
-            raise InputError("pair_r2_for must be 'first', 'all', None or a list of configurations")
+            raise InputError(
+                "pair_r2_for must be 'default', 'first', 'all', None or a list of configurations"
+            )
     else:
         wanted = _validate_configs(pair_r2_for)
         unknown = [c for c in wanted if c not in cfgs]
@@ -1080,6 +1094,28 @@ def build_reference(
     ]
     null_all = np.concatenate(out_null, axis=1) if out_null else None
     n = int(sample_ids.size)
+    other: dict[str, Any] = {}
+    lift_stats: dict[str, int] | None = None
+    if liftover_chain is not None:
+        from genesis_gwas.data.reference import _norm_build
+        from genesis_gwas.ld.liftover import lift_positions
+
+        native = _norm_build(genome_build)
+        lifted, lift_stats = lift_positions(liftover_chain, chrom_a, pos_a)
+        other["pos_grch38" if native == "GRCh37" else "pos_grch37"] = lifted
+        log.info(
+            "Lifted positions from %s to %s: %s mapped, %s not mapped",
+            native,
+            "GRCh38" if native == "GRCh37" else "GRCh37",
+            f"{lift_stats['mapped']:,}",
+            f"{rsid.size - lift_stats['mapped']:,}",
+        )
+        if lift_stats["mapped"] < 0.9 * rsid.size:
+            raise DataError(
+                f"Only {lift_stats['mapped']:,} of {rsid.size:,} positions could be lifted. "
+                f"Is the chain file the one that starts from {native}, the build given "
+                "for the genotypes?"
+            )
     root = save_reference(
         out_dir,
         name=name,
@@ -1102,7 +1138,9 @@ def build_reference(
             "seed": int(seed),
             "null_statistic": null_statistic if n_null else None,
             "filter_counts": stats,
+            "liftover": lift_stats,
         },
+        **other,
     )
     log.info(
         "Wrote reference bundle %s: %s SNPs, %d samples, %d configuration(s), %.1f s",

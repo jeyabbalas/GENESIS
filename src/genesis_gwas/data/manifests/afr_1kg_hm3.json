@@ -1,0 +1,204 @@
+{
+  "format_version": 1,
+  "name": "afr_1kg_hm3",
+  "version": "1.0",
+  "population": "AFR",
+  "panel": "1000 Genomes Phase 3, AFR (n=661), HapMap3 SNPs outside the MHC with MAF>=0.05",
+  "genome_build": "GRCh37",
+  "n_ref": 661,
+  "n_snps": 1025309,
+  "source": {
+    "built_with": "genesis-gwas 0.2.0",
+    "n_samples": 661,
+    "min_maf": 0.05,
+    "round_r2": null,
+    "seed": 123,
+    "null_statistic": "t",
+    "filter_counts": {
+      "variants_seen": 1205523,
+      "not_autosomal_or_not_requested": 0,
+      "not_in_snp_list": 2124,
+      "duplicate_id": 0,
+      "duplicate_position": 0,
+      "monomorphic_or_all_missing": 4874,
+      "below_min_maf": 173216
+    },
+    "liftover": {
+      "mapped": 1024729,
+      "deleted": 448,
+      "duplicated": 0,
+      "other_chromosome": 132
+    },
+    "genotypes": "1000 Genomes Project Phase 3 integrated call set v5a (release 20130502), ALL.chr{1..22}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz, converted with `genesis ld from-vcf`",
+    "samples": "the 661 samples with super_pop == AFR in integrated_call_samples_v3.20130502.ALL.panel (ACB 96, ASW 61, ESN 99, GWD 113, LWK 99, MSL 85, YRI 108)",
+    "snp_list": "w_hm3.noMHC.snplist of the original GENESIS package (1,215,001 HapMap3 SNPs) without the SNPs in chr6:26-34 Mb (GRCh37)",
+    "liftover_chain": "UCSC hg19ToHg38.over.chain.gz (md5 35887f73fe5e2231656504d1f6430900)"
+  },
+  "ld_configs": [
+    {
+      "id": "w500kb_r0.05",
+      "window_kb": 500.0,
+      "r2_min": 0.05,
+      "file": "ld/w500kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.1",
+      "window_kb": 500.0,
+      "r2_min": 0.1,
+      "file": "ld/w500kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.2",
+      "window_kb": 500.0,
+      "r2_min": 0.2,
+      "file": "ld/w500kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.05",
+      "window_kb": 1000.0,
+      "r2_min": 0.05,
+      "file": "ld/w1000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.1",
+      "window_kb": 1000.0,
+      "r2_min": 0.1,
+      "file": "ld/w1000kb_r0.1.npz",
+      "pairld": "pairld/w1000kb_r0.1.npz"
+    },
+    {
+      "id": "w1000kb_r0.2",
+      "window_kb": 1000.0,
+      "r2_min": 0.2,
+      "file": "ld/w1000kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.05",
+      "window_kb": 2000.0,
+      "r2_min": 0.05,
+      "file": "ld/w2000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.1",
+      "window_kb": 2000.0,
+      "r2_min": 0.1,
+      "file": "ld/w2000kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.2",
+      "window_kb": 2000.0,
+      "r2_min": 0.2,
+      "file": "ld/w2000kb_r0.2.npz",
+      "pairld": null
+    }
+  ],
+  "nullz": {
+    "dtype": "float16",
+    "n_replicates": 100,
+    "files": [
+      "nullz/nullz_000-009.npy",
+      "nullz/nullz_010-019.npy",
+      "nullz/nullz_020-029.npy",
+      "nullz/nullz_030-039.npy",
+      "nullz/nullz_040-049.npy",
+      "nullz/nullz_050-059.npy",
+      "nullz/nullz_060-069.npy",
+      "nullz/nullz_070-079.npy",
+      "nullz/nullz_080-089.npy",
+      "nullz/nullz_090-099.npy"
+    ]
+  },
+  "files": {
+    "snps.npz": {
+      "sha256": "47a0792a47dfc1c2ed952e8a8fc0599eba62b824c6e7b5150efb8234a0edf60d",
+      "bytes": 10643735
+    },
+    "ld/w500kb_r0.05.npz": {
+      "sha256": "6a5fbbf7fdaac5bfc1d174e71df1d8c6b2d1847f8444990b9301c2ddbd8a64f0",
+      "bytes": 25510705
+    },
+    "ld/w500kb_r0.1.npz": {
+      "sha256": "1810e520cfc09d04e26ccfa95e34b5084e4f604099ea9d0f75901c1221d7f868",
+      "bytes": 19559487
+    },
+    "ld/w500kb_r0.2.npz": {
+      "sha256": "ccff12972b5d61e52411d33283a35c2ce87fdf9a6b0d78ee106d68022de4d058",
+      "bytes": 15341441
+    },
+    "ld/w1000kb_r0.05.npz": {
+      "sha256": "4f48e1ee76396ee9fa820addaff06c1d866d7c360a3727d84535833aa4777d94",
+      "bytes": 25952766
+    },
+    "ld/w1000kb_r0.1.npz": {
+      "sha256": "13a6e6abc2d67ce889a25562698e78afba7fb4063617a655548024cf88f86753",
+      "bytes": 19650757
+    },
+    "pairld/w1000kb_r0.1.npz": {
+      "sha256": "7362848c72c640851803f1f69c518edd3e81c8768e2dace44decea1dbcad812c",
+      "bytes": 40583908
+    },
+    "ld/w1000kb_r0.2.npz": {
+      "sha256": "313726f355fb07b42dd22a68aeaefbacee5b8cf31e86c2a10ef9cac1a788759d",
+      "bytes": 15360607
+    },
+    "ld/w2000kb_r0.05.npz": {
+      "sha256": "4f366580d0e52b9a39752b2610885f3401dadce395320418e34b9583856c1f0b",
+      "bytes": 26130539
+    },
+    "ld/w2000kb_r0.1.npz": {
+      "sha256": "d6ec22bcfb8906dc3dc9a9e558b0ac9d1c01e36819782700333d2353e3c66c59",
+      "bytes": 19677812
+    },
+    "ld/w2000kb_r0.2.npz": {
+      "sha256": "93f67be13c2fbc53ee9bf7aac0cf529e4d9f2dc0ce2b3ca448c63e27c8b4f60e",
+      "bytes": 15364060
+    },
+    "nullz/nullz_000-009.npy": {
+      "sha256": "2319a625fed7ea8c97b3a942a27495b8139f0eb3d46ef9f006f5d9e6cfc6028f",
+      "bytes": 20506308
+    },
+    "nullz/nullz_010-019.npy": {
+      "sha256": "3d236cf6583a3f864230295356ceca00a54b1ec8fde8ba84948793e3342617a5",
+      "bytes": 20506308
+    },
+    "nullz/nullz_020-029.npy": {
+      "sha256": "2707cc81d014484866671c2f8e1f7da15a7914551116ab9acd56820e2abe9cc2",
+      "bytes": 20506308
+    },
+    "nullz/nullz_030-039.npy": {
+      "sha256": "04d970b5d28c2b6203946916afbc0681c654a2372c316d5087f4b58a2df77a47",
+      "bytes": 20506308
+    },
+    "nullz/nullz_040-049.npy": {
+      "sha256": "68e145d98d1e9c9d4f352c18272ce6feb3f49e26d5f8c37831a51dc7e3693242",
+      "bytes": 20506308
+    },
+    "nullz/nullz_050-059.npy": {
+      "sha256": "8203237661b7556c43ecf966c448e026030bcbaa79894027d35a2c46d8d957bd",
+      "bytes": 20506308
+    },
+    "nullz/nullz_060-069.npy": {
+      "sha256": "9aaf7b6b9da93375be029c33222f511839f24fc6ec35798bfbfef006b5f9bcac",
+      "bytes": 20506308
+    },
+    "nullz/nullz_070-079.npy": {
+      "sha256": "9afaf9392bd357da0e115c8e35b84dad83c9212060a58eaa25e2df1e78585df7",
+      "bytes": 20506308
+    },
+    "nullz/nullz_080-089.npy": {
+      "sha256": "80ff4408dcc54eecc0d56a5281c0d05a3a743d6cc61faf6c84c54b343172f86e",
+      "bytes": 20506308
+    },
+    "nullz/nullz_090-099.npy": {
+      "sha256": "ece1dff5086ee6af0b259618ab8ca448dda227d9f92c2d77396fd924c2f0b002",
+      "bytes": 20506308
+    }
+  }
+}

@@ -60,15 +60,16 @@ and has to be given otherwise.
 ### My file has no rsIDs, or its positions are in GRCh38.
 
 SNPs are matched to the reference by identifier and, if fewer than half of them match
-and the file has chromosome and position columns, by position. The bundled European
-reference carries GRCh37 and GRCh38 positions; the build that matches more SNPs is
+and the file has chromosome and position columns, by position. The downloadable
+references (European, East Asian, African ancestry) carry GRCh37 and GRCh38 positions; the build that matches more SNPs is
 used and recorded (`provenance.data.matching`). Force the behaviour with
 `--match-on rsid|position` and `--build GRCh37|GRCh38`.
 
 ### Which SNPs are analysed, and why were so many removed?
 
-Only SNPs of the LD reference can be analysed — for the bundled reference, 1,070,777
-HapMap3 SNPs with minor-allele frequency of at least 5% in 1000 Genomes Europeans. The
+Only SNPs of the LD reference can be analysed — for the European reference, 1,070,777
+HapMap3 SNPs with minor-allele frequency of at least 5% in 1000 Genomes Europeans
+(953,834 for the East Asian and 1,025,309 for the African-ancestry reference). The
 default quality control then applies, in this order, the filters recommended by the
 authors of the method:
 
@@ -90,10 +91,32 @@ identifiers in another format or positions in an unexpected build.
 
 ### Can I analyse a non-European GWAS?
 
-Yes, with an LD reference from a matching population. Build one from PLINK
-`.bed/.bim/.fam` files of a reference panel with `genesis ld build` (genome-wide
-HapMap3 SNPs take about a minute) and pass the directory with `--reference`. The
-estimates refer to the SNPs of that reference; $M$ is their number.
+Yes, with an LD reference from a matching population. References for East Asian and
+African ancestry are downloaded like the European one: `--reference EAS` (the data of
+the authors' GENESISasian package) and `--reference AFR` (built with this software from
+the 661 `AFR` samples of 1000 Genomes Phase 3). For any other population, build one
+from VCF or PLINK files of a reference panel with `genesis ld from-vcf` and
+`genesis ld build` (genome-wide HapMap3 SNPs take one to two minutes each) and pass the
+directory with `--reference`; see [Other ancestries](../tutorial/other-ancestries.md).
+The estimates refer to the SNPs of the reference used; $M$ is their number. No real
+East Asian or African-ancestry GWAS was analysed during development — the support
+rests on reproducing the original reference tables and on simulations
+([Validation](validation.md)).
+
+### I pass estimates as plain numbers to a downstream function. Which $M$ is used?
+
+Functions that accept a bare parameter vector instead of a fitted model
+(`n_in_interval`, `project`, `effect_density`, `effect_cdf`, `simulate_sumstats`,
+`polyrisk_predict`) cannot know the reference and assume $M = 1{,}070{,}777$, the
+European one, as the original R functions do. With another reference pass the
+`FitResult` (which carries its $M$) or give `M=` explicitly: 953,834 for `eas_1kg_hm3`
+and 1,025,309 for `afr_1kg_hm3`.
+
+### Is GENESISasian a different method?
+
+No. Its C++ code is byte-for-byte that of GENESIS and its R code differs only in
+default values; the difference is the LD data. See
+[Differences from the original](differences.md#genesisasian).
 
 ### Do I need individual-level data?
 

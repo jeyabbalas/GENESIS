@@ -1,0 +1,27 @@
+$ genesis ld from-vcf \
+      --vcf '1000G/ALL.chr{chrom}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz' \
+      --snps hm3_union.snplist --out 'plink/kg3.{chrom}' --processes 14
+17:32:07  ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 99,995 of 6,468,094 records written for 2504 samples -> plink/kg3.1
+17:32:07  ALL.chr2.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 101,080 of 7,081,600 records written for 2504 samples -> plink/kg3.2
+17:32:07  ALL.chr3.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 84,370 of 5,832,276 records written for 2504 samples -> plink/kg3.3
+17:32:07  ALL.chr4.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 75,933 of 5,732,585 records written for 2504 samples -> plink/kg3.4
+17:32:07  ALL.chr5.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 75,969 of 5,265,763 records written for 2504 samples -> plink/kg3.5
+17:32:07  ALL.chr6.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 76,236 of 5,024,119 records written for 2504 samples -> plink/kg3.6
+17:32:07  ALL.chr7.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 66,864 of 4,716,715 records written for 2504 samples -> plink/kg3.7
+17:32:07  ALL.chr8.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 65,690 of 4,597,105 records written for 2504 samples -> plink/kg3.8
+17:32:07  ALL.chr9.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 56,040 of 3,560,687 records written for 2504 samples -> plink/kg3.9
+17:32:07  ALL.chr10.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 64,895 of 3,992,219 records written for 2504 samples -> plink/kg3.10
+17:32:07  ALL.chr11.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 61,769 of 4,045,628 records written for 2504 samples -> plink/kg3.11
+17:32:07  ALL.chr12.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 59,482 of 3,868,428 records written for 2504 samples -> plink/kg3.12
+17:32:07  ALL.chr13.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 46,116 of 2,857,916 records written for 2504 samples -> plink/kg3.13
+17:32:07  ALL.chr14.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 39,987 of 2,655,067 records written for 2504 samples -> plink/kg3.14
+17:32:07  ALL.chr15.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 36,277 of 2,424,689 records written for 2504 samples -> plink/kg3.15
+17:32:07  ALL.chr16.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 36,962 of 2,697,949 records written for 2504 samples -> plink/kg3.16
+17:32:07  ALL.chr17.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 32,623 of 2,329,288 records written for 2504 samples -> plink/kg3.17
+17:32:07  ALL.chr18.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 35,879 of 2,267,185 records written for 2504 samples -> plink/kg3.18
+17:32:07  ALL.chr19.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 22,864 of 1,832,506 records written for 2504 samples -> plink/kg3.19
+17:32:07  ALL.chr20.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 31,526 of 1,812,841 records written for 2504 samples -> plink/kg3.20
+17:32:07  ALL.chr21.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 17,209 of 1,105,538 records written for 2504 samples -> plink/kg3.21
+17:32:07  ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz: 17,757 of 1,103,547 records written for 2504 samples -> plink/kg3.22
+17:32:07  Wrote 1,205,523 SNPs for 2504 samples in 22 fileset(s). Set aside: 80,059,009 not on the SNP list, 7,211 not biallelic SNPs, 2 duplicated identifiers or positions, 0 without genotypes.
+17:32:07  Next: genesis ld build --bfile 'plink/kg3.{chrom}' ...

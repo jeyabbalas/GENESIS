@@ -74,9 +74,14 @@ def verify_internal(bundle: Path):
     # ---- snps
     s = load_npz(bundle / "snps.npz")
     m = int(man["n_snps"])
-    check(sorted(s) == ["chrom", "hm3_no_mhc", "pos", "pos_grch38", "rsid"], "snps.npz keys")
+    # rsid/chrom/pos are required; positions in the other build and the HapMap3 flag are
+    # optional (bundles built with `genesis ld build` may have neither).
+    optional = {"hm3_no_mhc", "pos_grch38", "pos_grch37"}
+    check({"chrom", "pos", "rsid"} <= set(s) and set(s) - {"chrom", "pos", "rsid"} <= optional,
+          f"snps.npz keys ({', '.join(sorted(s))})")
     check(s["rsid"].dtype.kind == "S" and s["chrom"].dtype == np.uint8 and s["pos"].dtype == np.int32
-          and s["pos_grch38"].dtype == np.int32 and s["hm3_no_mhc"].dtype == np.bool_,
+          and all(s[k].dtype == np.int32 for k in ("pos_grch38", "pos_grch37") if k in s)
+          and ("hm3_no_mhc" not in s or s["hm3_no_mhc"].dtype == np.bool_),
           f"snps.npz dtypes (rsid {s['rsid'].dtype})")
     check(all(v.shape == (m,) for v in s.values()), f"snps.npz arrays have length n_snps = {m:,}")
     check(np.unique(s["rsid"]).size == m, "rsids are unique")
@@ -87,11 +92,13 @@ def verify_internal(bundle: Path):
     check(bool(strictly.all()), f"canonical order strictly sorted by (chrom, pos, rsid); "
           f"{int(tie.sum())} adjacent pairs share (chrom, pos)")
     check(int(pos.min()) >= 1, "positions are >= 1")
-    p38 = s["pos_grch38"]
-    info(f"chromosomes present: {int(chrom.min())}..{int(chrom.max())}; "
-         f"pos_grch38 == -1 for {int((p38 == -1).sum()):,} SNPs; hm3_no_mhc true for "
-         f"{int(s['hm3_no_mhc'].sum()):,}")
-    check(bool(((p38 == -1) | (p38 >= 1)).all()), "pos_grch38 is -1 or a positive position")
+    info(f"chromosomes present: {int(chrom.min())}..{int(chrom.max())}")
+    for k in ("pos_grch38", "pos_grch37"):
+        if k in s:
+            info(f"{k} == -1 for {int((s[k] == -1).sum()):,} SNPs")
+            check(bool(((s[k] == -1) | (s[k] >= 1)).all()), f"{k} is -1 or a positive position")
+    if "hm3_no_mhc" in s:
+        info(f"hm3_no_mhc true for {int(s['hm3_no_mhc'].sum()):,}")
 
     # ---- LD configurations
     results = {}
@@ -188,7 +195,12 @@ def verify_raw(bundle: Path, raw: Path, man: dict, s: dict, results: dict) -> No
     rsid, chrom, pos = s["rsid"], s["chrom"], s["pos"]
     m = rsid.size
     base_names = None
-    for cfg in rc.all_configs():
+    profile = rc.profile_of(man["name"]) or "eur"
+    have = {c["id"] for c in man["ld_configs"]}
+    raw_cfgs = [c for c in rc.all_configs(profile) if c["id"] in have]
+    check(len(raw_cfgs) == len(rc.all_configs(profile)) or rc.profile_of(man["name"]) is None,
+          f"bundle holds all {len(rc.all_configs(profile))} LD configuration(s) of the '{profile}' source")
+    for cfg in raw_cfgs:
         cid, d = cfg["id"], raw / cfg["raw_dir"]
         names = rc.read_names(d / "snpname.txt")
         if base_names is None:
@@ -289,12 +301,15 @@ def verify_raw(bundle: Path, raw: Path, man: dict, s: dict, results: dict) -> No
     info(f"nullz: max abs float16 quantisation error over all replicates = {max_q:.3e}")
 
     # ---- example
-    src = (raw / "height" / "heightGWAS.tsv").read_bytes()
-    rel = next(k for k in man["files"] if k.startswith("examples/"))
-    with gzip.open(bundle / rel, "rb") as fh:
-        got = fh.read()
-    n_rows = src.count(b"\n") - 1
-    check(got == src, f"[{rel}] decompresses to the exported heightGWAS table byte for byte ({n_rows:,} rows)")
+    rel = next((k for k in man["files"] if k.startswith("examples/")), None)
+    if rel is None:
+        info("bundle ships no example GWAS")
+    else:
+        src = (raw / "height" / "heightGWAS.tsv").read_bytes()
+        with gzip.open(bundle / rel, "rb") as fh:
+            got = fh.read()
+        n_rows = src.count(b"\n") - 1
+        check(got == src, f"[{rel}] decompresses to the exported heightGWAS table byte for byte ({n_rows:,} rows)")
     hm3 = np.array([ln.split(b"\t", 1)[0] for ln in
                     (raw / "hm3" / "w_hm3.noMHC.snplist.tsv").read_bytes().split(b"\n")[1:] if ln], dtype="S")
     check(np.array_equal(np.isin(rsid, hm3), s["hm3_no_mhc"]), "hm3_no_mhc == membership in w_hm3.noMHC.snplist")
@@ -368,7 +383,10 @@ def verify_spotcheck(bundle: Path, spot: Path, man: dict, s: dict, results: dict
     bad_hm3 = sum(bool(s["hm3_no_mhc"][row_of[snp]]) != (flag == "1") for snp, flag in recs["HM3"])
     check(bad_hm3 == 0, f"HM3 records: {len(recs['HM3'])} flags match; mismatches: {bad_hm3}")
 
-    rel = next(k for k in man["files"] if k.startswith("examples/"))
+    rel = next((k for k in man["files"] if k.startswith("examples/")), None)
+    if rel is None:
+        info("HEIGHT records skipped: bundle ships no example GWAS")
+        return
     with gzip.open(bundle / rel, "rt") as fh:
         ex = {}
         want = set(snp_list)

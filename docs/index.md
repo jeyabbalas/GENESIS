@@ -39,9 +39,10 @@ of the authors' [R package](https://github.com/yandorazhang/GENESIS).
   that the data cannot identify are flagged and excluded from model selection.
 - **Practical data handling.** Column names and effect scales are detected, quality
   control is reported step by step, SNPs are matched by identifier or by position in
-  GRCh37 or GRCh38, and LD references for any population can be built from PLINK files.
+  GRCh37 or GRCh38. LD references for European, East Asian and African ancestry are
+  ready to use, and one for any other population can be built from VCF or PLINK files.
 - **Simple installation.** A pure-Python package; the reference data needed for a
-  standard analysis are a 32 MB download, verified by checksum.
+  standard analysis are a download of about 30 MB per ancestry, verified by checksum.
 - **A command line, a Python API and machine-readable results**, with helpers for
   running many traits on the NIH Biowulf cluster.
 
@@ -61,7 +62,7 @@ genesis fit trait.sumstats.tsv.gz --out results/trait --qq --project 500000,1000
 ```python
 import genesis_gwas as gg
 
-ref = gg.load_reference()                           # European reference (cached download)
+ref = gg.load_reference()                           # European; "EAS" or "AFR" for other ancestries
 data = gg.prepare("trait.sumstats.tsv.gz", ref)     # QC + merge with the LD reference
 m2 = gg.fit(data, 2)                                # two-component model
 m3 = gg.fit(data, 3, starting=m2)                   # three-component model
@@ -186,7 +187,9 @@ with this information is in the repository.
 (at your option) any later version (GPL-2.0-or-later). It is a derivative work of the
 R package [GENESIS](https://github.com/yandorazhang/GENESIS) by Yan Zhang, Guanghao Qi,
 Ju-Hyun Park and Nilanjan Chatterjee, which is distributed under GPL (≥ 2). The method,
-the European LD reference (computed by its authors from 1000 Genomes Project data) and
+the European LD reference (computed by its authors from 1000 Genomes Project data), the
+East Asian LD reference (from the same authors'
+[GENESISasian](https://github.com/yandorazhang/GENESISasian) package) and
 the example data set (GIANT height GWAS, [Lango Allen et al. 2010](#ref-langoallen2010))
 are taken from that package.
 

@@ -291,9 +291,12 @@ def test_data_commands(tmp_path, capsys, monkeypatch):
     assert main(["data", "list"]) == 0
     # both spellings of the directory option work in every `genesis data` command
     assert main(["data", "list", "--dest", str(tmp_path)]) == 0
-    assert main(["data", "list", "--data-dir", str(tmp_path)]) == 0
+    assert main(["data", "list", "--data-dir", str(tmp_path), "--summary"]) == 0
     out = capsys.readouterr().out
     assert "eur_1kg_hm3" in out and "mini_chr22" in out and "w1000kb_r0.1" in out
+    # the East Asian and African-ancestry references are listed with their panels
+    assert "eas_1kg_hm3" in out and "population EAS, 953,834 SNPs, 504 samples" in out
+    assert "afr_1kg_hm3" in out and "population AFR, 1,025,309 SNPs, 661 samples" in out
     root = gg.load_reference("mini_chr22").root
     assert main(["data", "verify", str(root)]) == 0
     assert "ok" in capsys.readouterr().out

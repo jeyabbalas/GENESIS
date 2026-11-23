@@ -5,7 +5,8 @@ EUR restricted to HapMap3 SNPs):
 
 ``snps.npz``
     The panel's SNP table in canonical order (sorted by chromosome, position, id):
-    ``rsid``, ``chrom``, ``pos`` and optionally ``pos_grch38``, ``hm3_no_mhc``.
+    ``rsid``, ``chrom``, ``pos`` and optionally ``pos_grch38`` or ``pos_grch37``,
+    ``hm3_no_mhc``.
 ``ld/w{window_kb}kb_r{r2_min}.npz``
     One file per LD configuration: for every reference SNP the number of tagged SNPs
     ``nstar`` (:math:`N^*_k`), the bias-corrected LD score ``ldscore`` (:math:`\ell_k`),
@@ -129,8 +130,10 @@ class LDReference:
         ``(M,)`` SNP identifiers as fixed-width ASCII bytes.
     chrom, pos
         ``(M,)`` chromosome and base-pair position in ``genome_build`` coordinates.
-    pos_grch38
-        ``(M,)`` GRCh38 positions (``-1`` where unavailable), or ``None``.
+    pos_grch38, pos_grch37
+        ``(M,)`` positions in the build that ``pos`` is not in (``-1`` where unavailable),
+        or ``None``. A GRCh37 bundle may carry ``pos_grch38`` and a GRCh38 bundle
+        ``pos_grch37``, so that summary statistics can be matched by position in either.
     hm3_no_mhc
         ``(M,)`` flag of the HapMap3-without-MHC list used by the QC filter, or ``None``.
     download
@@ -151,6 +154,7 @@ class LDReference:
     ldscore: np.ndarray
     pos_grch38: np.ndarray | None = None
     hm3_no_mhc: np.ndarray | None = None
+    pos_grch37: np.ndarray | None = None
     download: bool = True
     _cache: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -299,6 +303,8 @@ class LDReference:
             ref_pos = self.pos
         elif want == "GRCh38" and self.pos_grch38 is not None:
             ref_pos = self.pos_grch38
+        elif want == "GRCh37" and self.pos_grch37 is not None:
+            ref_pos = self.pos_grch37
         else:
             raise ReferenceDataError(
                 f"Reference {self.name!r} has no {want} positions (native build {native})."
@@ -436,15 +442,19 @@ def load_reference(
         One of
 
         * a path to a bundle directory (containing ``manifest.json``),
-        * ``"eur_1kg_hm3"`` — the European reference of the original software
-          (1000 Genomes Phase 3 EUR, 1,070,777 HapMap3 SNPs); downloaded on first use
-          into :func:`default_data_dir` and verified against recorded SHA-256 checksums,
+        * the name of a downloadable reference, fetched on first use into
+          :func:`default_data_dir` and verified against recorded SHA-256 checksums:
+          ``"eur_1kg_hm3"`` (European; the reference of the original GENESIS package),
+          ``"eas_1kg_hm3"`` (East Asian; the reference of the original GENESISasian
+          package) or ``"afr_1kg_hm3"`` (African ancestry; built with this software).
+          All are 1000 Genomes Phase 3 panels restricted to common HapMap3 SNPs. The
+          population codes ``"EUR"``, ``"EAS"`` and ``"AFR"`` are accepted as short names,
         * ``"mini_chr22"`` — a 2 MB chromosome-22 slice of the above, shipped inside the
           package for demonstrations and tests.
     window_kb, r2_min
         LD configuration (default: 1000 kb and :math:`r^2\ge0.1`, the paper's primary
-        choice). The bundled reference offers windows 500/1000/2000 kb and thresholds
-        0.05/0.1/0.2.
+        choice). The downloadable references offer windows 500/1000/2000 kb and
+        thresholds 0.05/0.1/0.2.
     data_dir
         Where downloaded bundles live (default :func:`default_data_dir`).
     download
@@ -464,8 +474,13 @@ def load_reference(
         manifest = json.loads((root / "manifest.json").read_text())
         name = ref_txt
     else:
-        from genesis_gwas.data.download import known_bundles, load_packaged_manifest
+        from genesis_gwas.data.download import (
+            known_bundles,
+            load_packaged_manifest,
+            resolve_bundle_name,
+        )
 
+        ref_txt = resolve_bundle_name(ref_txt)
         if ref_txt not in known_bundles():
             raise ReferenceDataError(
                 f"{ref_txt!r} is neither a bundle directory (no manifest.json found) nor a known "
@@ -502,6 +517,7 @@ def load_reference(
         pos = z["pos"]
         pos38 = z["pos_grch38"] if "pos_grch38" in z.files else None
         hm3 = z["hm3_no_mhc"] if "hm3_no_mhc" in z.files else None
+        pos37 = z["pos_grch37"] if "pos_grch37" in z.files else None
     with np.load(need(config.file), allow_pickle=False) as z:
         nstar = z["nstar"].astype(np.int64)
         ldscore = z["ldscore"].astype(np.float64)
@@ -522,6 +538,7 @@ def load_reference(
         ldscore=ldscore,
         pos_grch38=pos38,
         hm3_no_mhc=hm3,
+        pos_grch37=pos37,
         download=download,
     )
 
@@ -543,6 +560,7 @@ def save_reference(
     hm3_no_mhc: Any = None,
     null_z: np.ndarray | None = None,
     source: dict[str, Any] | None = None,
+    pos_grch37: Any = None,
 ) -> Path:
     """Write a reference bundle to ``out_dir``.
 
@@ -558,8 +576,9 @@ def save_reference(
         One dict per LD configuration with keys ``window_kb``, ``r2_min``, ``nstar``,
         ``ldscore``, ``indptr``, ``indices`` and optionally ``r2`` (pairwise
         :math:`r^2` aligned with ``indices``).
-    pos_grch38, hm3_no_mhc
-        Optional extra SNP columns.
+    pos_grch38, pos_grch37, hm3_no_mhc
+        Optional extra SNP columns: positions in the other genome build (``-1`` where
+        unknown) and the flag used by the HapMap3-without-MHC filter.
     null_z
         Optional ``(n_replicates, M)`` array of LD-correlated null Z-scores.
 
@@ -597,8 +616,13 @@ def save_reference(
     snp_arrays: dict[str, np.ndarray] = {"rsid": ids, "chrom": chrom_a, "pos": pos_a}
     if pos_grch38 is not None:
         snp_arrays["pos_grch38"] = np.asarray(pos_grch38, dtype=np.int32)
+    if pos_grch37 is not None:
+        snp_arrays["pos_grch37"] = np.asarray(pos_grch37, dtype=np.int32)
     if hm3_no_mhc is not None:
         snp_arrays["hm3_no_mhc"] = np.asarray(hm3_no_mhc, dtype=bool)
+    for key_, arr_ in snp_arrays.items():
+        if arr_.shape != (M,):
+            raise InputError(f"SNP column {key_!r} must have one value per SNP")
     np.savez_compressed(root / "snps.npz", **snp_arrays)  # type: ignore[arg-type]
     record("snps.npz")
 

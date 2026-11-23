@@ -5,7 +5,10 @@
 #   Rscript --vanilla export_rdata.R <upstream_data_dir> <raw_out_dir>
 #
 # <upstream_data_dir> is the data/ directory of https://github.com/yandorazhang/GENESIS
-# (commit e4e6894d2e11ece6715d0572b0febceff1480f85). Base R only; nothing is installed.
+# (commit e4e6894d2e11ece6715d0572b0febceff1480f85) or of
+# https://github.com/yandorazhang/GENESISasian (commit 4df90ac6ef3ea84219110187ef4ef5b5a79b83e6).
+# LD configurations that the directory does not contain are skipped (GENESISasian ships
+# only LDwindow1MB_cutoff0.1). Base R only; nothing is installed.
 #
 # Output layout (all binaries little-endian; *.i32 = int32, *.f64 = float64):
 #   ld_w{0.5,1,2}MB_c{0.05,0.1,0.2}/
@@ -84,6 +87,10 @@ cutoffs <- c("0.05", "0.1", "0.2")
 for (w in windows) {
   for (cc in cutoffs) {
     name <- sprintf("LDwindow%sMB_cutoff%s", w, cc)
+    if (!file.exists(file.path(data_dir, paste0(name, ".RData")))) {
+      say(name, " not present: skipped")
+      next
+    }
     t0 <- proc.time()[3]
     e <- load_one(name)
     if (!identical(ls(e), "dataLD")) stop("unexpected objects in ", name, ": ", paste(ls(e), collapse = ","))

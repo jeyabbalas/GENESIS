@@ -41,6 +41,23 @@ def _float_list(text: str) -> list[float]:
         raise argparse.ArgumentTypeError(f"expected comma-separated numbers, got {text!r}") from exc
 
 
+def _int_list(text: str) -> list[int]:
+    try:
+        out: list[int] = []
+        for part in text.split(","):
+            part = part.strip()
+            if "-" in part:
+                lo, hi = part.split("-", 1)
+                out.extend(range(int(lo), int(hi) + 1))
+            elif part:
+                out.append(int(part))
+        return out
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"expected integers or ranges like 1-22, got {text!r}"
+        ) from exc
+
+
 def _col_or_number(text: str) -> str | float:
     try:
         return float(text)
@@ -84,7 +101,9 @@ def _add_reference_options(p: argparse.ArgumentParser) -> None:
     g.add_argument(
         "--reference",
         default="eur_1kg_hm3",
-        help="reference name ('eur_1kg_hm3', 'mini_chr22') or path to a bundle directory "
+        help="LD reference of the ancestry of the GWAS: a downloadable reference "
+        "('eur_1kg_hm3', 'eas_1kg_hm3', 'afr_1kg_hm3', or EUR/EAS/AFR for short), the "
+        "packaged 'mini_chr22', or the path of a bundle built with `genesis ld build` "
         "[eur_1kg_hm3]",
     )
     g.add_argument("--ld-window-kb", type=float, default=None, help="LD window in kb [1000]")
@@ -392,7 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func="plot")
 
     # ------------------------------------------------------------------- ld
-    p = sub.add_parser("ld", help="build an LD reference bundle from PLINK genotypes")
+    p = sub.add_parser("ld", help="build an LD reference bundle from genotypes of any population")
     ldsub = p.add_subparsers(dest="ld_command", metavar="<ld command>")
     b = ldsub.add_parser(
         "build",
@@ -436,18 +455,82 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument(
         "--bundle-version", default="1.0", help="version label recorded in the bundle [1.0]"
     )
-    b.add_argument("--population", default="unknown")
-    b.add_argument("--genome-build", default="GRCh37")
+    b.add_argument("--population", default="unknown", help="population label, e.g. AFR")
+    b.add_argument(
+        "--panel", default="", help="free-text description of the panel, recorded in the bundle"
+    )
+    b.add_argument(
+        "--genome-build",
+        default="GRCh37",
+        help="build of the positions in the .bim files: GRCh37 or GRCh38 [GRCh37]",
+    )
+    b.add_argument(
+        "--liftover-chain",
+        help="UCSC chain file from --genome-build to the other build "
+        "(hg19ToHg38.over.chain.gz or hg38ToHg19.over.chain.gz); the bundle then matches "
+        "summary statistics by position in either build",
+    )
     b.add_argument("--seed", type=int, default=123)
     _add_compute_options(b)
     _add_logging_options(b)
     b.set_defaults(func="ld_build")
+    v = ldsub.add_parser(
+        "from-vcf",
+        help="extract SNPs and samples from VCF files into PLINK filesets for `ld build`",
+        description="Stream VCF files (plain, gzip or bgzip) once and write the biallelic "
+        "autosomal SNPs on a list, for the samples on a list, as PLINK .bed/.bim/.fam "
+        "filesets. No external tools are needed. Indels, multi-allelic records and "
+        "duplicated identifiers are set aside and counted.",
+    )
+    v.add_argument(
+        "--vcf",
+        required=True,
+        help="VCF file; use {chrom} for per-chromosome files, e.g. ALL.chr{chrom}.vcf.gz",
+    )
+    v.add_argument(
+        "--out",
+        "-o",
+        required=True,
+        help="output PLINK prefix (with {chrom} if --vcf has it), e.g. panel/kg.{chrom}",
+    )
+    v.add_argument(
+        "--snps",
+        help="file with the SNP identifiers to keep (e.g. HapMap3), one per line "
+        "[all biallelic SNPs]",
+    )
+    v.add_argument(
+        "--positions",
+        help="select SNPs by position instead of identifier, for panels without rsIDs: "
+        "file with the columns CHR POS [ID], positions in the build of the VCF; ID, if "
+        "given, is the name written for the SNP",
+    )
+    v.add_argument("--keep", help="file with the sample IDs to keep [all samples]")
+    v.add_argument(
+        "--chromosomes",
+        type=_int_list,
+        default=list(range(1, 23)),
+        help="autosomes to convert, e.g. 21,22 [1-22]",
+    )
+    v.add_argument(
+        "--processes",
+        type=int,
+        default=None,
+        help="chromosome files converted in parallel [one per CPU]",
+    )
+    _add_logging_options(v)
+    v.set_defaults(func="ld_from_vcf")
 
     # ----------------------------------------------------------------- data
     p = sub.add_parser("data", help="manage reference data")
     dsub = p.add_subparsers(dest="data_command", metavar="<data command>")
     f = dsub.add_parser("fetch", help="download reference files (resumable, checksum-verified)")
-    f.add_argument("bundle", nargs="?", default="eur_1kg_hm3")
+    f.add_argument(
+        "bundle",
+        nargs="?",
+        default="eur_1kg_hm3",
+        help="reference to fetch: eur_1kg_hm3, eas_1kg_hm3 or afr_1kg_hm3 (EUR, EAS, AFR "
+        "for short); see `genesis data list` [eur_1kg_hm3]",
+    )
     f.add_argument(
         "--components",
         default="default",
@@ -470,6 +553,9 @@ def build_parser() -> argparse.ArgumentParser:
         dest="data_dir",
         default=None,
         help="directory holding the reference bundles [$GENESIS_DATA_DIR]",
+    )
+    li.add_argument(
+        "--summary", action="store_true", help="one block per reference, without the file list"
     )
     _add_logging_options(li)
     li.set_defaults(func="data_list")

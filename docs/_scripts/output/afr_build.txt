@@ -1,0 +1,36 @@
+$ awk '$3 == "AFR" {print $1}' integrated_call_samples_v3.20130502.ALL.panel > afr.samples
+$ genesis ld build --bfile 'plink/kg3.{chrom}' --keep afr.samples \
+      --snps hm3_noMHC_strict.snplist --window-kb 500,1000,2000 --r2 0.05,0.1,0.2 \
+      --n-null 100 --name afr_1kg_hm3 --population AFR \
+      --panel '1000 Genomes Phase 3, AFR (n=661), HapMap3 SNPs outside the MHC with MAF>=0.05' \
+      --genome-build GRCh37 --liftover-chain hg19ToHg38.over.chain.gz \
+      --threads 8 --out refs/afr_1kg_hm3
+17:33:34  chr1     84,116 SNPs, 3,252,574 tagging pairs (w500kb_r0.05), 3.3 s
+17:33:39  chr2     87,055 SNPs, 3,560,809 tagging pairs (w500kb_r0.05), 3.3 s
+17:33:43  chr3     72,224 SNPs, 2,944,366 tagging pairs (w500kb_r0.05), 3.0 s
+17:33:46  chr4     65,727 SNPs, 2,513,961 tagging pairs (w500kb_r0.05), 2.7 s
+17:33:49  chr5     64,785 SNPs, 2,539,007 tagging pairs (w500kb_r0.05), 2.4 s
+17:33:53  chr6     62,674 SNPs, 2,459,950 tagging pairs (w500kb_r0.05), 2.7 s
+17:33:56  chr7     57,033 SNPs, 2,192,061 tagging pairs (w500kb_r0.05), 2.3 s
+17:33:59  chr8     56,301 SNPs, 2,241,941 tagging pairs (w500kb_r0.05), 2.5 s
+17:34:01  chr9     47,468 SNPs, 1,822,182 tagging pairs (w500kb_r0.05), 2.0 s
+17:34:05  chr10    54,734 SNPs, 2,067,502 tagging pairs (w500kb_r0.05), 2.5 s
+17:34:08  chr11    52,608 SNPs, 2,166,128 tagging pairs (w500kb_r0.05), 2.2 s
+17:34:10  chr12    49,484 SNPs, 1,855,098 tagging pairs (w500kb_r0.05), 1.7 s
+17:34:12  chr13    39,306 SNPs, 1,456,382 tagging pairs (w500kb_r0.05), 1.4 s
+17:34:14  chr14    34,047 SNPs, 1,316,147 tagging pairs (w500kb_r0.05), 1.4 s
+17:34:16  chr15    31,080 SNPs, 1,044,452 tagging pairs (w500kb_r0.05), 1.4 s
+17:34:17  chr16    31,579 SNPs, 1,002,485 tagging pairs (w500kb_r0.05), 1.2 s
+17:34:19  chr17    27,768 SNPs, 902,858 tagging pairs (w500kb_r0.05), 1.2 s
+17:34:20  chr18    31,193 SNPs, 1,024,659 tagging pairs (w500kb_r0.05), 1.2 s
+17:34:22  chr19    19,587 SNPs, 586,753 tagging pairs (w500kb_r0.05), 0.8 s
+17:34:23  chr20    27,082 SNPs, 904,044 tagging pairs (w500kb_r0.05), 1.0 s
+17:34:24  chr21    14,841 SNPs, 433,795 tagging pairs (w500kb_r0.05), 0.6 s
+17:34:25  chr22    14,617 SNPs, 453,183 tagging pairs (w500kb_r0.05), 0.5 s
+17:34:25  build_reference: variants_seen                       1,205,523
+17:34:25  build_reference: not_in_snp_list                         2,124
+17:34:25  build_reference: monomorphic_or_all_missing              4,874
+17:34:25  build_reference: below_min_maf                         173,216
+17:34:25  Lifted positions from GRCh37 to GRCh38: 1,024,729 mapped, 580 not mapped
+17:34:54  Wrote reference bundle refs/afr_1kg_hm3: 1,025,309 SNPs, 661 samples, 9 configuration(s), 84.6 s
+17:34:54  Reference bundle written to refs/afr_1kg_hm3; use it with --reference refs/afr_1kg_hm3

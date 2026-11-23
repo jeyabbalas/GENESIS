@@ -22,6 +22,25 @@ Building a bundle
 
 .. autofunction:: genesis_gwas.ld.allele_frequencies
 
+Converting VCF files
+--------------------
+
+.. automodule:: genesis_gwas.ld.vcf
+   :no-members:
+
+.. autofunction:: genesis_gwas.ld.vcf_to_plink
+
+Positions in a second genome build
+----------------------------------
+
+.. automodule:: genesis_gwas.ld.liftover
+   :no-members:
+
+.. autoclass:: genesis_gwas.ld.liftover.ChainLiftover
+   :members: lift
+
+.. autofunction:: genesis_gwas.ld.liftover.lift_positions
+
 Reading PLINK files
 -------------------
 

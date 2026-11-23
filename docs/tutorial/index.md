@@ -113,8 +113,8 @@ relative risk, and AUC.
 :link: other-ancestries
 :link-type: doc
 
-Building an LD reference from your own genotypes with `genesis ld build`, and what has
-and has not been validated.
+The ready-made East Asian and African-ancestry references, building a reference for any
+other population from VCF or PLINK genotypes, and what has and has not been validated.
 :::
 
 :::{grid-item-card} 8 · Many traits and ancestries
@@ -137,6 +137,8 @@ $ genesis --version
 
 **Reference data.** The European reference used throughout (`eur_1kg_hm3`) is fetched
 automatically the first time it is needed; the files for a standard fit total 32 MB.
+The East Asian and African-ancestry references ([Chapter 7](other-ancestries.md)) work
+the same way.
 [Chapter 2](data.md) shows how to download it ahead of time, which you will want on a
 cluster or behind a firewall. A chromosome-22 subset (`mini_chr22`) is packaged with the
 software and needs no download; the tutorial uses it where speed matters.

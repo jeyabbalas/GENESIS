@@ -33,6 +33,21 @@ python check_snp_selection.py --plink "$PLINK" --bundle /path/eur_1kg_hm3 \
 GENESIS_1000G_PLINK=/path/1000G_EUR_Phase3_plink pytest tests/ld/test_upstream_chr22.py
 ```
 
+The same script validates against the East Asian tables of GENESISasian. The genotypes are
+then the 1000 Genomes Phase 3 VCF files converted with `genesis ld from-vcf`, restricted to
+the 504 `EAS` samples with `--keep`; the configurations compared are those the bundle
+records as upstream's:
+
+```bash
+python validate_against_upstream.py --plink 'plink/kg3.{chrom}' --keep eas.samples \
+       --bundle /path/eas_1kg_hm3 --no-unrounded
+```
+
+Result (`round_r2=6`, 1 Mb, r² ≥ 0.1): `N*` equal and tagging list identical for all 953,834
+SNPs, no pair only in one of the two tables (42,020,856 ordered pairs), largest LD-score
+difference 4.0e-6 (decimal ties at the sixth significant digit; 41 SNPs differ by more than
+1e-9). The remaining sections report the European run.
+
 ## What the original computed (established here)
 
 * **Reference SNPs.** Of the 1,215,001 SNPs of `w_hm3.noMHC.snplist`, 1,188,097 are in the

@@ -36,6 +36,25 @@ OpenMP header matching R's bundled `libomp.dylib` from
 | `gen_mini_chr22.R` | `tests/data/mini_chr22/*`, `tests/fixtures/upstream/mini_chr22_{m2,m3}.json.gz`, `mini_chr22_stochastic.json` | ~22 min, 1 thread (two 3-component fits of ~9 min each) |
 | `gen_height_full.R` | `tests/fixtures/upstream/height_full_m{2,3}.json` (summaries) and `<work_dir>/height_m{2,3}.json` + `*.f64` (per-SNP dumps, 189 MB / 265 MB, not committed) | ~25 min on 12 threads (M2 ~2 min, M3 ~23 min) |
 
+`run_all.sh` does not run the East Asian parity generator, which needs a clone of
+[GENESISasian](https://github.com/yandorazhang/GENESISasian) (commit
+`4df90ac6ef3ea84219110187ef4ef5b5a79b83e6`) and the converted `eas_1kg_hm3` bundle
+(`tools/refdata`):
+
+```bash
+python make_eas_sim.py /path/eas_1kg_hm3 $WORK/eas_sim.tsv.gz        # simulated East Asian GWAS, 858,450 SNPs
+Rscript --vanilla gen_eas_sim.R . /path/GENESISasian $WORK $WORK/eas_sim.tsv.gz 2,3 12 \
+        ../../tests/fixtures/upstream $WORK/logs/eas.stdout.log > $WORK/logs/eas.stdout.log
+```
+
+| script | output | runtime (Apple M5 Pro) |
+|---|---|---|
+| `make_eas_sim.py` | the GWAS both implementations are run on (GENESISasian ships no East Asian GWAS) | ~10 s |
+| `gen_eas_sim.R` | `tests/fixtures/upstream/eas_sim_m{2,3}.json` — GENESISasian `genesis()` with all its defaults (`M = 953834`) | M2 55 s; M3 see fixture `wall_seconds_total` (12 threads) |
+
+GENESISasian's `src/EM_EM.cpp` is byte-identical to GENESIS's (same SHA-256), so the build
+recipe below applies unchanged; its R code differs only in the default `M`.
+
 Each script can be run on its own; see the usage line at the top of the file.
 All paths are command-line arguments. Do not edit a generator while it is
 running: `Rscript` reads the file incrementally.

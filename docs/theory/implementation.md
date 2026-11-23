@@ -263,22 +263,28 @@ directory of NumPy archives with a manifest of SHA-256 checksums
 
 | File | Content |
 |---|---|
-| `snps.npz` | identifier, chromosome, position (GRCh37 and, where liftable, GRCh38), HapMap3-without-MHC flag |
+| `snps.npz` | identifier, chromosome, position (in the build of the panel and, where it could be converted, in the other of GRCh37 and GRCh38), optionally a HapMap3-without-MHC flag |
 | `ld/w{window}kb_r{r2}.npz` | $N^*_k$, $\ell_k$ and the tagging neighbourhoods (compressed sparse rows) for one LD definition |
 | `pairld/…npz` | pairwise $r^2$ aligned with the neighbourhoods (for simulation) |
 | `nullz/…npy` | LD-correlated null $z$ scores (for QQ envelopes) |
 | `manifest.json` | names, provenance, sizes, checksums |
 
-The bundled European reference is a lossless conversion of the original's data (LD scores
+The European reference is a lossless conversion of the original's data (LD scores
 are bit-identical), with SNPs sorted by position so that a marker's neighbours are nearby
-rows. Files are fetched on first use, one at a time and only those an analysis needs —
-32 MB for a standard fit — with resumable transfers, checksum verification before a file
+rows; the East Asian reference is the same conversion of the data of GENESISasian, and
+the African-ancestry reference was computed by the builder described next. Files are
+fetched on first use, one at a time and only those an analysis needs —
+about 30 MB for a standard fit — with resumable transfers, checksum verification before a file
 becomes visible, and a lock that makes concurrent fetches from many cluster jobs safe
 ({mod}`genesis_gwas.data.download`).
 
 `genesis ld build` writes the same format from PLINK genotypes
-({func}`genesis_gwas.ld.build_reference`). Built from the 1000 Genomes European genotypes
-it reproduces the bundled tables, which validates both the definitions and the builder;
+({func}`genesis_gwas.ld.build_reference`), and `genesis ld from-vcf`
+({func}`genesis_gwas.ld.vcf_to_plink`) produces those from VCF files. With a UCSC chain
+file the builder also stores each SNP's position in the other genome build
+({mod}`genesis_gwas.ld.liftover`). Built from the 1000 Genomes European and East Asian
+genotypes it reproduces the original tables, which validates both the definitions and
+the builder;
 see [the tutorial](../tutorial/other-ancestries.md) and
 [Validation](../reference/validation.md).
 

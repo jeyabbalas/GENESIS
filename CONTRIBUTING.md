@@ -52,6 +52,8 @@ Tests that need external data are skipped unless the data are present:
 # Genome-wide parity with the original software (needs the full reference bundle)
 genesis data fetch --components default,examples --dest /path/to/data
 GENESIS_DATA_DIR=/path/to/data pytest tests/test_full_scale.py
+# ... and with GENESISasian (East Asian reference with null replicates and pairwise r2)
+genesis data fetch EAS --components default,nullz,pairld --dest /path/to/data
 
 # LD builder against the original reference tables (needs the LDSC 1000 Genomes EUR PLINK files)
 GENESIS_1000G_PLINK=/path/to/1000G_EUR_Phase3_plink pytest tests/ld

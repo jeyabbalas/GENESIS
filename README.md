@@ -37,7 +37,8 @@ This repository is a ground-up re-implementation of the authors'
   report, matching by rsID or by position (GRCh37/GRCh38).
 - Downstream analyses: projections of future discoveries, expected AUC of polygenic
   scores, per-SNP posterior probabilities and shrunken effects, model-based QQ plots.
-- LD references for any population, built from PLINK files with `genesis ld build`.
+- LD references for European, East Asian and African ancestry, downloaded on demand,
+  and a builder for any other population from VCF or PLINK genotypes (`genesis ld`).
 - A command-line interface and a Python API; results as JSON and TSV.
 
 ## Installation
@@ -57,7 +58,8 @@ and the [Biowulf guide](BIOWULF.md) for the NIH HPC cluster.
 
 ## Quick start
 
-Command line — the European LD reference (32 MB) is downloaded on first use:
+Command line — the LD reference (European by default, 32 MB; `--reference EAS` or
+`--reference AFR` for East Asian or African ancestry) is downloaded on first use:
 
 ```bash
 genesis fit trait.sumstats.tsv.gz --out results/trait --qq --project 500000,1000000
@@ -74,7 +76,7 @@ Python:
 ```python
 import genesis_gwas as gg
 
-ref = gg.load_reference()                           # European reference (cached download)
+ref = gg.load_reference()                           # European; "EAS" or "AFR" for other ancestries
 data = gg.prepare("trait.sumstats.tsv.gz", ref)     # QC + merge with the LD reference
 m2 = gg.fit(data, 2)                                # two-component model
 m3 = gg.fit(data, 3, starting=m2)                   # three-component model
@@ -82,6 +84,28 @@ best = gg.select_model([m2, m3]).best               # by BIC
 print(best.summary())                               # estimates, SEs, heritability, diagnostics
 print(gg.project(best, n=[500_000, 1_000_000]).to_frame())
 ```
+
+## Ancestries
+
+The LD reference has to match the population of the GWAS. Three references are
+downloaded on demand; a multi-ancestry project fits each ancestry separately with its
+own:
+
+| `--reference` | Population | Panel (1000 Genomes Phase 3) | SNPs | Origin |
+|---|---|---:|---:|---|
+| `EUR` (default) | European | 489 | 1,070,777 | data of the original GENESIS package |
+| `EAS` | East Asian | 504 | 953,834 | data of the authors' [GENESISasian](https://github.com/yandorazhang/GENESISasian) package, which has the same code as GENESIS |
+| `AFR` | African ancestry | 661 | 1,025,309 | built with this package |
+
+```bash
+genesis fit trait.AFR.tsv.gz --reference AFR --out results/trait.AFR
+```
+
+For any other population, `genesis ld from-vcf` and `genesis ld build` turn public
+genotypes (for example 1000 Genomes VCF files) into a reference in a few minutes; see
+[Other ancestries](https://jeyabbalas.github.io/GENESIS/tutorial/other-ancestries.html).
+The East Asian and African-ancestry references have been validated by reproducing the
+authors' reference tables and by simulation, not on real GWAS of those populations.
 
 ## How it differs from the original R package
 
@@ -94,9 +118,9 @@ print(gg.project(best, n=[500_000, 1_000_000]).to_frame())
 | Run time, GIANT height GWAS (both models) | about 24 minutes | about one minute, including projections, posteriors and a QQ plot (12 threads, same laptop) |
 | Non-identified three-component fits | reported without warning | flagged, not selected |
 | Quality control | optional, off by default | on by default, with a report |
-| Installation | R package with 1.6 GB of data, compiled C++ | pure Python; 32 MB of reference data downloaded on demand |
+| Installation | R package with 1.6 GB of data, compiled C++ | pure Python; about 30 MB of reference data per ancestry, downloaded on demand |
 | Hardware | CPU threads (OpenMP) | CPU threads or CUDA GPUs |
-| LD reference panels | European | European, plus a builder for any population |
+| LD reference panels | European (GENESIS), East Asian (separate package GENESISasian) | European, East Asian and African ancestry in one package, plus a builder for any population |
 
 Every difference is documented with its reason and measured effect in
 [Differences from the original](https://jeyabbalas.github.io/GENESIS/reference/differences.html);
@@ -129,7 +153,8 @@ GPL-2.0-or-later (see [LICENSE](LICENSE)). This package is a derivative work of 
 R package [GENESIS](https://github.com/yandorazhang/GENESIS) by Yan Zhang, Guanghao Qi,
 Ju-Hyun Park and Nilanjan Chatterjee, distributed under GPL (≥ 2). The method, the
 European LD reference (derived by its authors from the 1000 Genomes Project) and the
-example data are taken from that package.
+example data are taken from that package, and the East Asian LD reference from the same
+authors' [GENESISasian](https://github.com/yandorazhang/GENESISasian) package.
 
 ## Reporting problems
 

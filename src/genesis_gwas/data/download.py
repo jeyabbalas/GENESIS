@@ -40,6 +40,7 @@ __all__ = [
     "fetch_bundle",
     "known_bundles",
     "load_packaged_manifest",
+    "resolve_bundle_name",
     "sha256_file",
     "verify_bundle",
 ]
@@ -47,7 +48,13 @@ __all__ = [
 log = logging.getLogger("genesis_gwas")
 
 # Bundles that can be downloaded: name -> release tag holding their assets.
-_REMOTE_BUNDLES: dict[str, str] = {"eur_1kg_hm3": "refdata-v1"}
+_REMOTE_BUNDLES: dict[str, str] = {
+    "eur_1kg_hm3": "refdata-v1",
+    "eas_1kg_hm3": "refdata-v2",
+    "afr_1kg_hm3": "refdata-v2",
+}
+# Short names accepted wherever a bundle name is (case-insensitive).
+_ALIASES: dict[str, str] = {"eur": "eur_1kg_hm3", "eas": "eas_1kg_hm3", "afr": "afr_1kg_hm3"}
 _DEFAULT_BASE_URL = "https://github.com/jeyabbalas/GENESIS/releases/download"
 _CHUNK = 1 << 20
 
@@ -57,8 +64,20 @@ def known_bundles() -> tuple[str, ...]:
     return tuple(_REMOTE_BUNDLES)
 
 
+def resolve_bundle_name(name: str) -> str:
+    """Canonical bundle name of a name or population alias (``"AFR"`` → ``"afr_1kg_hm3"``).
+
+    Names that are not recognised are returned unchanged.
+    """
+    key = name.strip().lower()
+    if key in _REMOTE_BUNDLES:
+        return key
+    return _ALIASES.get(key, name)
+
+
 def load_packaged_manifest(name: str) -> dict[str, Any]:
     """Manifest (file list with checksums) of a downloadable bundle, as shipped in the package."""
+    name = resolve_bundle_name(name)
     if name not in _REMOTE_BUNDLES:
         raise ReferenceDataError(
             f"Unknown reference bundle {name!r}; known: {sorted(_REMOTE_BUNDLES)}"
@@ -77,6 +96,7 @@ def asset_name(bundle: str, version: str, rel: str) -> str:
 
 def asset_url(bundle: str, rel: str) -> str:
     """Download URL of a bundle file (override the host with ``GENESIS_DATA_URL``)."""
+    bundle = resolve_bundle_name(bundle)
     manifest = load_packaged_manifest(bundle)
     base = os.environ.get("GENESIS_DATA_URL", "").strip().rstrip("/")
     name = asset_name(bundle, str(manifest["version"]), rel)
@@ -287,6 +307,7 @@ def fetch_bundle(
     """
     from genesis_gwas.data.reference import default_data_dir
 
+    bundle = resolve_bundle_name(bundle)
     manifest = load_packaged_manifest(bundle)
     base = Path(data_dir).expanduser() if data_dir is not None else default_data_dir()
     root = base / bundle / str(manifest["version"])

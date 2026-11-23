@@ -195,6 +195,12 @@ def main() -> None:
     ap.add_argument(
         "--raw", default=None, help="raw upstream exports (optional; exact pairwise r2 check)"
     )
+    ap.add_argument(
+        "--keep",
+        default=None,
+        help="file with the sample IDs the tables were computed from (first column); "
+        "default: all samples of the fileset",
+    )
     ap.add_argument("--chroms", default="1-22")
     ap.add_argument("--block-size", type=int, default=1024)
     ap.add_argument("--device", default="cpu")
@@ -213,6 +219,13 @@ def main() -> None:
     args = ap.parse_args()
     chroms = parse_chroms(args.chroms)
 
+    # the configurations the bundle holds (nine for eur_1kg_hm3, one for eas_1kg_hm3)
+    global CONFIGS
+    manifest = json.loads((Path(args.bundle) / "manifest.json").read_text())
+    CONFIGS = [(float(c["window_kb"]), float(c["r2_min"])) for c in manifest["ld_configs"]]
+    keep_ids = None
+    if args.keep:
+        keep_ids = {ln.split()[0] for ln in Path(args.keep).read_text().splitlines() if ln.strip()}
     refs = {cfg: gg.load_reference(args.bundle, window_kb=cfg[0], r2_min=cfg[1]) for cfg in CONFIGS}
     base = refs[PAIR_CFG]
     M = base.M
@@ -255,7 +268,12 @@ def main() -> None:
             "canonical order must be chromosome-contiguous"
         )
         t0 = time.perf_counter()
-        reader, bim, _fam = BedReader.from_prefix(args.plink.format(chrom=chrom))
+        reader, bim, fam = BedReader.from_prefix(args.plink.format(chrom=chrom))
+        cols = None
+        if keep_ids is not None:
+            cols = np.flatnonzero(fam["iid"].astype(str).isin(keep_ids).to_numpy())
+        n_used = reader.n_samples if cols is None else int(cols.size)
+        assert n_used == base.n_ref, f"{n_used} samples selected, the bundle records {base.n_ref}"
         lookup = {s: i for i, s in enumerate(bim["snp"].tolist())}
         rsid = base.rsid[sel].astype("U").tolist()
         vidx = np.array([lookup[s] for s in rsid], dtype=np.int64)
@@ -263,7 +281,7 @@ def main() -> None:
         assert np.array_equal(bim["pos"].to_numpy()[vidx], pos), (
             "bim positions differ from the reference"
         )
-        G = reader.read(vidx)
+        G = reader.read(vidx, samples=cols)
         read_seconds += time.perf_counter() - t0
         for mode, digits in modes:
             t0 = time.perf_counter()
@@ -390,7 +408,7 @@ def main() -> None:
     }
     for mode, _ in modes:
         print(
-            f"\n=== {mode}: compute_ld, nine configurations in one pass, {seconds[mode]:.1f} s ==="
+            f"\n=== {mode}: compute_ld, {len(CONFIGS)} configuration(s) in one pass, {seconds[mode]:.1f} s ==="
         )
         print(
             f"{'config':<15}{'SNPs':>10}{'N* equal':>12}{'rows identical':>16}{'pairs +ours':>13}{'pairs +upstr':>14}{'max|dLD|':>11}"

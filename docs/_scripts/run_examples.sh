@@ -93,7 +93,7 @@ if section data; then
     rm -rf refdata-demo
     capture    data_fetch        genesis data fetch --dest refdata-demo
     capture    data_fetch_more   genesis data fetch --dest refdata-demo --components w500kb_r0.2,examples
-    capture    data_list         genesis data list --data-dir refdata-demo
+    capture    data_list         genesis data list --data-dir refdata-demo --summary
     capture    prepare_height    "$PY" "$EX/prepare_height.py"
     capture    prepare_messy     "$PY" "$EX/prepare_messy.py"
     capture    read_formats      "$PY" "$EX/read_formats.py"

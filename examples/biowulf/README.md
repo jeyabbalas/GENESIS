@@ -7,14 +7,14 @@ with the reasoning behind every number in these files, is [BIOWULF.md](../../BIO
 | File | What it does | How it runs |
 |---|---|---|
 | `setup_env.sh` | creates the conda environment (`CPU_ONLY=1` for a build without PyTorch) | `bash setup_env.sh` inside an `sinteractive` session |
-| `fetch_refdata.sh` | downloads and verifies the LD reference into `/data` | `sbatch fetch_refdata.sh default,nullz` |
+| `fetch_refdata.sh` | downloads and verifies LD references into `/data` (European by default; East Asian and African ancestry by name) | `sbatch fetch_refdata.sh default,nullz [eur_1kg_hm3 eas_1kg_hm3 afr_1kg_hm3]` |
 | `gpu_check.sh` | test of the GPU path (`nvidia-smi`, PyTorch, `genesis doctor --benchmark`, demo fit) | `sbatch gpu_check.sh` |
 | `benchmark.sh` | times one pass over a genome-wide data set for several thread counts and for the GPU(s) of the job (`genesis doctor --benchmark`) | `sbatch benchmark.sh` |
 | `fit_cpu.sh` | one analysis on CPUs | `sbatch fit_cpu.sh SUMSTATS OUT_PREFIX [genesis fit options]` |
 | `fit_gpu.sh` | one analysis on one GPU | `sbatch fit_gpu.sh SUMSTATS OUT_PREFIX [genesis fit options]` |
 | `fit_multigpu.sh` | one analysis on two GPUs of one node | `sbatch fit_multigpu.sh SUMSTATS OUT_PREFIX [genesis fit options]` |
-| `ld_build.sh` | builds an LD reference for another population from PLINK files | `sbatch ld_build.sh BFILE OUT_DIR NAME POPULATION SNPLIST` |
-| `project_swarm.py` | writes one swarm file for every trait of every ancestry of a project, skipping finished fits | `python project_swarm.py PROJECT -- [genesis fit options]`, then the `swarm` command it prints |
+| `ld_build.sh` | builds an LD reference from PLINK files, for a population that the downloadable references (European, East Asian, African ancestry) do not serve | `sbatch ld_build.sh BFILE OUT_DIR NAME POPULATION SNPLIST` |
+| `project_swarm.py` | writes one swarm file for every trait of every ancestry of a project, skipping finished fits; `EUR`, `EAS` and `AFR` use the downloadable references unless the project has its own | `python project_swarm.py PROJECT -- [genesis fit options]`, then the `swarm` command it prints |
 | `collect_results.py` | gathers all results into two tables and lists unfinished fits | `python collect_results.py PROJECT/results --out PROJECT/collected/all` |
 | `subset_to_reference.py` | shrinks a genome-wide summary-statistics file to the SNPs of the LD reference | `python subset_to_reference.py IN OUT` |
 

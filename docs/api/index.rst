@@ -104,6 +104,7 @@ See :doc:`ld`.
 .. autosummary::
    :nosignatures:
 
+   ld.vcf_to_plink
    ld.build_reference
    ld.compute_ld
    ld.null_z

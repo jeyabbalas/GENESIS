@@ -1,12 +1,12 @@
 $ genesis fit sim_disease.sumstats.tsv.gz --out results/sim_disease \
       --population-prevalence 0.10 --sample-prevalence 0.5455
-19:50:05  genesis-gwas 0.1.0
+19:50:05  genesis-gwas 0.2.0
 19:50:05  Command: genesis fit sim_disease.sumstats.tsv.gz --out results/sim_disease --population-prevalence 0.10 --sample-prevalence 0.5455
 19:50:06  Reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
 19:50:07  Read 1,070,777 rows from sim_disease.sumstats.tsv.gz (Z from BETA / SE; N from effective N = n_cases * n_controls / (n_cases + n_controls))
 19:50:09  QC: outside the HapMap3-without-MHC list                       removed      1,879,  1,068,898 remain
 19:50:09  QC: chi-square > 80                                            removed        267,  1,068,631 remain
-19:50:09  Prepared 1,068,631 SNPs for analysis (of 1,070,777 read)
+19:50:09  Prepared 1,068,631 SNPs for analysis (of 1,070,777 read), matched to the reference by identifier
 19:50:09  Fitting the two-component model ...
 19:50:09  Compute: numpy on CPU, 18 thread(s); 1,068,631 SNPs
 19:50:09    M2           iter     0  logLik 4151945.7174  c0 10  [9.95006e-03  3.97275e-05  -6.67908e-07]

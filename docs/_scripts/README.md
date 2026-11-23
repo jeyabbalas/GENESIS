@@ -27,6 +27,15 @@ Sphinx does not treat this directory as documentation source (`exclude_patterns`
   with their directory in `GENESIS_1000G_PLINK`. Without it that section is skipped and
   its transcripts keep their previous content.
 
+Not produced by `run_examples.sh`: the transcripts of the multi-ancestry part of the
+chapter on other ancestries. `kg_from_vcf.txt`, `afr_build.txt`, `afr_fit.txt` and
+`eas_rebuild.txt` were saved from the runs that built and checked the East Asian and
+African-ancestry references (they need the 15 GB of 1000 Genomes Phase 3 VCF files; the
+commands are in the transcripts and in `tools/refdata/README.md`), and
+`data_list_all.txt` and `data_fetch_ancestries.txt` are the output of the commands in
+their first lines with the data directory shown as `~/.cache/genesis-gwas` or
+`refdata-demo`.
+
 ## Steps
 
 ```bash

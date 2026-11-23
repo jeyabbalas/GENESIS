@@ -1,0 +1,208 @@
+{
+  "format_version": 1,
+  "name": "eas_1kg_hm3",
+  "version": "1.0",
+  "population": "EAS",
+  "panel": "1000 Genomes Phase 3, EAS (n=504), HapMap3 SNPs with MAF>=0.05",
+  "genome_build": "GRCh37",
+  "n_ref": 504,
+  "n_snps": 953834,
+  "source": {
+    "repo": "https://github.com/yandorazhang/GENESISasian",
+    "commit": "4df90ac6ef3ea84219110187ef4ef5b5a79b83e6"
+  },
+  "ld_configs": [
+    {
+      "id": "w500kb_r0.05",
+      "window_kb": 500,
+      "r2_min": 0.05,
+      "file": "ld/w500kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.1",
+      "window_kb": 500,
+      "r2_min": 0.1,
+      "file": "ld/w500kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w500kb_r0.2",
+      "window_kb": 500,
+      "r2_min": 0.2,
+      "file": "ld/w500kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.05",
+      "window_kb": 1000,
+      "r2_min": 0.05,
+      "file": "ld/w1000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w1000kb_r0.1",
+      "window_kb": 1000,
+      "r2_min": 0.1,
+      "file": "ld/w1000kb_r0.1.npz",
+      "pairld": "pairld/w1000kb_r0.1.npz"
+    },
+    {
+      "id": "w1000kb_r0.2",
+      "window_kb": 1000,
+      "r2_min": 0.2,
+      "file": "ld/w1000kb_r0.2.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.05",
+      "window_kb": 2000,
+      "r2_min": 0.05,
+      "file": "ld/w2000kb_r0.05.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.1",
+      "window_kb": 2000,
+      "r2_min": 0.1,
+      "file": "ld/w2000kb_r0.1.npz",
+      "pairld": null
+    },
+    {
+      "id": "w2000kb_r0.2",
+      "window_kb": 2000,
+      "r2_min": 0.2,
+      "file": "ld/w2000kb_r0.2.npz",
+      "pairld": null
+    }
+  ],
+  "nullz": {
+    "dtype": "float16",
+    "n_replicates": 100,
+    "files": [
+      "nullz/nullz_000-009.npy",
+      "nullz/nullz_010-019.npy",
+      "nullz/nullz_020-029.npy",
+      "nullz/nullz_030-039.npy",
+      "nullz/nullz_040-049.npy",
+      "nullz/nullz_050-059.npy",
+      "nullz/nullz_060-069.npy",
+      "nullz/nullz_070-079.npy",
+      "nullz/nullz_080-089.npy",
+      "nullz/nullz_090-099.npy"
+    ]
+  },
+  "files": {
+    "ld/w1000kb_r0.05.npz": {
+      "sha256": "eb08b1f573172f2d760d4cdd31505b98f8fee24c51ee29c9be54695210d56558",
+      "bytes": 19781429
+    },
+    "ld/w1000kb_r0.1.npz": {
+      "sha256": "3ec3b3fdbf19695530cf0606bc48190f06263e3577c35af2f5715771bfdba2ca",
+      "bytes": 16922149
+    },
+    "ld/w1000kb_r0.2.npz": {
+      "sha256": "e424c594f4036f72c78f00b9d50eba676fb427baf3ea2b27fb15128ab4ad9939",
+      "bytes": 14304593
+    },
+    "ld/w2000kb_r0.05.npz": {
+      "sha256": "d56f2c0a8ef43356c3078ccd3ec364bf5e9191b1d5ccbd33fcc437a242c4fa68",
+      "bytes": 19842792
+    },
+    "ld/w2000kb_r0.1.npz": {
+      "sha256": "c8dddc9355ccc542bc0a7d99c59ee4a5c6f277ec899ddaaf7cdcf1728d55829d",
+      "bytes": 16939874
+    },
+    "ld/w2000kb_r0.2.npz": {
+      "sha256": "0fa196d009d739af7c7e180db9cb7a66ecbfa69f052cb552112bd29e894e7801",
+      "bytes": 14308672
+    },
+    "ld/w500kb_r0.05.npz": {
+      "sha256": "57e06d2d9194844d1dc88492545dfbe127a6f365a51d71eac6c7d68b36176925",
+      "bytes": 19571639
+    },
+    "ld/w500kb_r0.1.npz": {
+      "sha256": "e123bd7d613ecdc5a387ac91b9c17c238be3d53777cb51b776c0ea55debe93b4",
+      "bytes": 16857531
+    },
+    "ld/w500kb_r0.2.npz": {
+      "sha256": "c17c29d870c273f2e2eb0787cb4d1291d7474f18131fabfdf49841c9b87153e6",
+      "bytes": 14291651
+    },
+    "nullz/nullz_000-009.npy": {
+      "sha256": "4822835ebb052b4ffef494700b96123ca4dcf904db238243c467a8bc0db54a49",
+      "bytes": 19076808
+    },
+    "nullz/nullz_010-019.npy": {
+      "sha256": "ab12036d84e9820dfa5dd7a1e6efa17a8cd6c5d53cfdb05adc063057e68be9b4",
+      "bytes": 19076808
+    },
+    "nullz/nullz_020-029.npy": {
+      "sha256": "dc51654e529c43dd8916922b521b0433037925664a7a940f077ce52f67abd85e",
+      "bytes": 19076808
+    },
+    "nullz/nullz_030-039.npy": {
+      "sha256": "e2f516ba609203372d1a7c83c4533ac41af6f22acce49cd00a52781680bf84fc",
+      "bytes": 19076808
+    },
+    "nullz/nullz_040-049.npy": {
+      "sha256": "661f9407c92fc3c098bfe472487d452a8b9aec19406e5f36bf201db0b369f466",
+      "bytes": 19076808
+    },
+    "nullz/nullz_050-059.npy": {
+      "sha256": "d0f5201c69cf4cd999a59281b25accb9ae31c4a5ca91992333a484e32636932a",
+      "bytes": 19076808
+    },
+    "nullz/nullz_060-069.npy": {
+      "sha256": "2884f939b7f3eee169252f9fa3e731c55208939642fb404c9c91d4607a9937ec",
+      "bytes": 19076808
+    },
+    "nullz/nullz_070-079.npy": {
+      "sha256": "a67c6e6374be9376850c8c34f351fda7e6737257e52f90bf3d68d2f3d1c19563",
+      "bytes": 19076808
+    },
+    "nullz/nullz_080-089.npy": {
+      "sha256": "47d92952b70529e32dca54ca588bebc26d6c07a1a094fb588fcebd88e6e0adc1",
+      "bytes": 19076808
+    },
+    "nullz/nullz_090-099.npy": {
+      "sha256": "35b04ba191f40e9a24f81cbf29b11dc2240e8b304534636aa312552a4bec7ca7",
+      "bytes": 19076808
+    },
+    "pairld/w1000kb_r0.1.npz": {
+      "sha256": "82b5c5ae8839240850890142ee84fb73b4054cdade961c94d585ef30667c83b4",
+      "bytes": 57099664
+    },
+    "snps.npz": {
+      "sha256": "0052b595062a2faa6a35d5c5e6d181aa7195cbf96c8851de01c7e5b6437b5e0b",
+      "bytes": 9928243
+    }
+  },
+  "computed_ld_configs": {
+    "ids": [
+      "w500kb_r0.05",
+      "w500kb_r0.1",
+      "w500kb_r0.2",
+      "w1000kb_r0.05",
+      "w1000kb_r0.2",
+      "w2000kb_r0.05",
+      "w2000kb_r0.1",
+      "w2000kb_r0.2"
+    ],
+    "built_with": "genesis-gwas 0.2.0 (compute_ld, round_r2=6)",
+    "genotypes": "1000 Genomes Project Phase 3 integrated call set v5a (release 20130502), the 504 samples with super_pop == EAS, converted with genesis ld from-vcf",
+    "n_samples": 504,
+    "agreement_with_upstream": {
+      "w1000kb_r0.1": {
+        "n_snps": 953834,
+        "nstar_equal": 953834,
+        "tagging_rows_identical": 953834,
+        "fraction_identical": 1.0,
+        "max_abs_ldscore_diff_identical_rows": 4.007968133379336e-06,
+        "n_snps_ldscore_diff_gt_1e-9": 41,
+        "pairs_stored": 42020856,
+        "pairs_recomputed": 42020856
+      }
+    }
+  }
+}

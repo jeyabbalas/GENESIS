@@ -35,7 +35,7 @@ few seconds. Progress is logged to the terminal and to `out/chr22.log`; the repo
 
 ```console
 $ cat out/chr22.summary.txt
-genesis-gwas 0.1.0
+genesis-gwas 0.2.0
 input: .../site-packages/genesis_gwas/datasets/mini_chr22/examples/height_chr22.sumstats.tsv.gz
 reference: mini_chr22 v1.0 (EUR, GRCh37, M = 15,633; window 1000 kb, r2 >= 0.1)
 
@@ -191,7 +191,8 @@ explain; the second draws the fitted effect-size distribution.
 ## 4. A genome-wide analysis
 
 Without `--reference` the European reference is used, which is downloaded and cached
-on first use; without `--model` both models are fitted and one is selected by BIC. The
+on first use (`--reference EAS` and `--reference AFR` select the East Asian and
+African-ancestry references; see [other ancestries](../tutorial/other-ancestries.md)); without `--model` both models are fitted and one is selected by BIC. The
 GIANT height file of the original package is available as an example data set:
 
 ```bash
@@ -207,7 +208,7 @@ The analysis uses 941,684 SNPs after quality control and merging and fits both m
 
 ```console
 $ cat results/height.summary.txt
-genesis-gwas 0.1.0
+genesis-gwas 0.2.0
 input: ~/.cache/genesis-gwas/eur_1kg_hm3/1.0/examples/height_giant2010.sumstats.tsv.gz
 reference: eur_1kg_hm3 v1.0 (EUR, GRCh37, M = 1,070,777; window 1000 kb, r2 >= 0.1)
 

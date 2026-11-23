@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Assemble the ``eur_1kg_hm3`` reference bundle (format_version 1).
+"""Assemble a reference bundle (format_version 1) from an upstream R package's data.
 
     python -I build_bundle.py --raw RAW_DIR --chain hg19ToHg38.over.chain.gz --out BUNDLE_DIR
+                              [--profile eur|eas]
 
-RAW_DIR is the output of ``export_rdata.R``. The bundle layout and every array are
+``--profile eur`` (default) builds ``eur_1kg_hm3`` from upstream GENESIS, ``--profile eas``
+builds ``eas_1kg_hm3`` from GENESISasian. RAW_DIR is the output of ``export_rdata.R``. The bundle layout and every array are
 described in README.md. All arrays are aligned to the canonical SNP order, i.e. sorted
 by (chrom, pos, rsid) ascending.
 """
@@ -54,8 +56,10 @@ def lift_positions(chain_gz: Path, chrom: np.ndarray, pos: np.ndarray):
     return out, stats
 
 
-def build(raw: Path, chain: Path, out: Path) -> None:
-    configs = rc.all_configs()
+def build(raw: Path, chain: Path, out: Path, profile: str = "eur") -> None:
+    prof = rc.PROFILES[profile]
+    configs = rc.all_configs(profile)
+    n_ref = int(prof["n_ref"])
     files: dict[str, dict] = {}
 
     def register(rel: str) -> None:
@@ -129,7 +133,7 @@ def build(raw: Path, chain: Path, out: Path) -> None:
                 "indices": indices,
                 "window_kb": np.float64(cfg["window_kb"]),
                 "r2_min": np.float64(cfg["r2_min"]),
-                "n_ref": np.int64(rc.N_REF),
+                "n_ref": np.int64(n_ref),
             },
         )
         register(rel)
@@ -179,24 +183,25 @@ def build(raw: Path, chain: Path, out: Path) -> None:
         nullz_files.append(rel)
 
     # ------------------------------------------------------------------ example
-    height = (raw / "height" / "heightGWAS.tsv").read_bytes()
-    if not height.startswith(b"SNP\tZ\tN\n"):
-        raise SystemExit("unexpected header in heightGWAS.tsv")
-    rel = "examples/height_giant2010.sumstats.tsv.gz"
-    rc.gzip_deterministic(height, out / rel)
-    register(rel)
+    if prof["example"]:
+        height = (raw / "height" / "heightGWAS.tsv").read_bytes()
+        if not height.startswith(b"SNP\tZ\tN\n"):
+            raise SystemExit("unexpected header in heightGWAS.tsv")
+        rel = prof["example"]
+        rc.gzip_deterministic(height, out / rel)
+        register(rel)
 
     # ------------------------------------------------------------------ manifest
     manifest = {
         "format_version": rc.FORMAT_VERSION,
-        "name": "eur_1kg_hm3",
-        "version": "1.0",
-        "population": "EUR",
-        "panel": rc.PANEL,
+        "name": prof["name"],
+        "version": prof["version"],
+        "population": prof["population"],
+        "panel": prof["panel"],
         "genome_build": "GRCh37",
-        "n_ref": rc.N_REF,
+        "n_ref": n_ref,
         "n_snps": int(m),
-        "source": {"repo": rc.UPSTREAM_REPO, "commit": rc.UPSTREAM_COMMIT},
+        "source": {"repo": prof["repo"], "commit": prof["commit"]},
         "ld_configs": ld_entries,
         "nullz": {"dtype": "float16", "n_replicates": rc.N_NULLZ, "files": nullz_files},
         "files": {k: files[k] for k in sorted(files)},
@@ -211,9 +216,11 @@ def main() -> None:
     ap.add_argument("--raw", required=True, type=Path, help="output directory of export_rdata.R")
     ap.add_argument("--chain", required=True, type=Path, help="UCSC hg19ToHg38.over.chain.gz")
     ap.add_argument("--out", required=True, type=Path, help="bundle directory to create")
+    ap.add_argument("--profile", choices=sorted(rc.PROFILES), default="eur",
+                    help="upstream source: eur = GENESIS, eas = GENESISasian [eur]")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    build(args.raw, args.chain, args.out)
+    build(args.raw, args.chain, args.out, args.profile)
 
 
 if __name__ == "__main__":

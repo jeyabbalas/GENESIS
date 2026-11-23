@@ -1,7 +1,8 @@
 """Shared helpers for the reference-data conversion tools (numpy + stdlib only).
 
 These scripts turn the reference data bundled with upstream GENESIS
-(https://github.com/yandorazhang/GENESIS, commit e4e6894) into the compact
+(https://github.com/yandorazhang/GENESIS, commit e4e6894; European) and GENESISasian
+(https://github.com/yandorazhang/GENESISasian, commit 4df90ac; East Asian) into the compact
 "reference bundle" (format_version 1) consumed by the refactored package.
 See README.md in this directory for the format specification.
 """
@@ -39,11 +40,44 @@ def raw_ld_dir(window_label: str, cutoff: str) -> str:
     return f"ld_w{window_label}MB_c{cutoff}"
 
 
-def all_configs() -> list[dict]:
-    """All nine upstream configurations, ordered by (window, cutoff)."""
+# Upstream sources the tools can convert. ``configs`` lists the (window label, cutoff)
+# pairs the source ships; ``example`` is the bundle-relative name of the example GWAS
+# (None: not shipped -- GENESISasian carries the *European* height GWAS, which is not an
+# example for an East Asian reference).
+PROFILES: dict[str, dict] = {
+    "eur": {
+        "name": "eur_1kg_hm3",
+        "version": "1.0",
+        "population": "EUR",
+        "panel": PANEL,
+        "n_ref": N_REF,
+        "repo": UPSTREAM_REPO,
+        "commit": UPSTREAM_COMMIT,
+        "configs": tuple((w, c) for w, _ in WINDOWS for c in CUTOFFS),
+        "example": "examples/height_giant2010.sumstats.tsv.gz",
+    },
+    "eas": {
+        "name": "eas_1kg_hm3",
+        "version": "1.0",
+        "population": "EAS",
+        "panel": "1000 Genomes Phase 3, EAS (n=504), HapMap3 SNPs",
+        "n_ref": 504,
+        "repo": "https://github.com/yandorazhang/GENESISasian",
+        "commit": "4df90ac6ef3ea84219110187ef4ef5b5a79b83e6",
+        "configs": (("1", "0.1"),),
+        "example": None,
+    },
+}
+
+
+def all_configs(profile: str = "eur") -> list[dict]:
+    """The LD configurations of an upstream source, ordered by (window, cutoff)."""
+    have = set(PROFILES[profile]["configs"])
     out = []
     for w_label, w_kb in WINDOWS:
         for c in CUTOFFS:
+            if (w_label, c) not in have:
+                continue
             out.append(
                 {
                     "id": cfg_id(w_kb, c),
@@ -54,6 +88,11 @@ def all_configs() -> list[dict]:
                 }
             )
     return out
+
+
+def profile_of(name: str) -> str | None:
+    """Profile key of a bundle name (``None`` for bundles the tools did not convert)."""
+    return next((k for k, v in PROFILES.items() if v["name"] == name), None)
 
 
 # --------------------------------------------------------------------------- raw I/O
